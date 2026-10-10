@@ -242,6 +242,15 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
     return res.status(413).json({ success: false, errorCode: 'UPLOAD_TOO_LARGE', error: 'Each reference image must be 1.2 MB or smaller.' });
   }
   const provider = (process.env.POSTER_IMAGE_PROVIDER || 'huggingface').trim().toLowerCase();
+  const fullPrompt = [
+    prompt.trim().slice(0, 6000),
+    typeof businessName === 'string' && businessName.trim() ? `Exact business/brand name: ${businessName.trim().slice(0, 100)}` : '',
+    typeof brandTagline === 'string' && brandTagline.trim() ? `Exact brand tagline: ${brandTagline.trim().slice(0, 160)}` : '',
+    typeof businessPhone === 'string' && businessPhone.trim() ? `Exact business phone: ${businessPhone.trim().slice(0, 30)}` : '',
+    typeof businessWebsite === 'string' && businessWebsite.trim() ? `Exact website/social link: ${businessWebsite.trim().slice(0, 160)}` : '',
+    typeof businessAddress === 'string' && businessAddress.trim() ? `Exact business address: ${businessAddress.trim().slice(0, 180)}` : '',
+    `All visible text must be in ${typeof language === 'string' && language.trim() ? language.slice(0, 60) : 'English'}. Preserve supplied details exactly and do not invent contact information or business claims.`
+  ].filter(Boolean).join('\\n');
 
   // Text-to-image endpoints cannot reliably apply uploaded brand assets. When a
   // logo/product reference is provided, compose a precise branded SVG instead of
@@ -252,7 +261,7 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
       const selectedLanguage = typeof language === 'string' ? language.slice(0, 60) : 'English';
       const generated = await GeminiService.generateCreativeAsset(
         'promotional_poster',
-        prompt.trim().slice(0, 6000),
+        fullPrompt,
         { aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '1:1', language: selectedLanguage },
         user.id
       );
