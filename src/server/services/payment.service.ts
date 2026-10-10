@@ -19,7 +19,7 @@ export class PaymentService {
     return {
       configured: this.isConfigured(),
       keyId: razorpayKeyId ? `${razorpayKeyId.slice(0, 8)}...` : 'NOT_CONFIGURED',
-      mode: this.isConfigured() ? 'LIVE_OR_TEST_API' : 'SANDBOX_SIMULATION'
+      mode: this.isConfigured() ? 'LIVE_OR_TEST_API' : 'NOT_CONFIGURED'
     };
   }
 
@@ -104,27 +104,16 @@ export class PaymentService {
     // A duplicate checkout callback must never allocate credits twice.
     if (payment.verified) return { verified: true, planId: payment.planId };
 
-    let isValidSignature = false;
-
-    if (this.isConfigured()) {
-      // Real cryptographic HMAC SHA-256 verification
-      const body = `${params.orderId}|${params.paymentId}`;
-      const expectedSignature = crypto
-        .createHmac('sha256', razorpayKeySecret)
-        .update(body.toString())
-        .digest('hex');
-      isValidSignature = expectedSignature === params.signature;
-    } else {
-      // In sandbox development mode when credentials are not configured,
-      // strictly verify signature format and reject any invalid or tampered signature
-      isValidSignature = Boolean(
-        params.paymentId.startsWith('pay_') &&
-        params.signature &&
-        params.signature.startsWith('valid_sig_') &&
-        !params.signature.includes('tampered') &&
-        !params.signature.includes('invalid')
-      );
+    if (!this.isConfigured()) {
+      return { verified: false, error: 'Razorpay credentials are not configured. Payment cannot be verified.' };
     }
+
+    const body = `${params.orderId}|${params.paymentId}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', razorpayKeySecret)
+      .update(body)
+      .digest('hex');
+    const isValidSignature = expectedSignature === params.signature;
 
     if (!isValidSignature) {
       payment.status = 'FAILED';
