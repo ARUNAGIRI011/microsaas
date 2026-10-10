@@ -113,14 +113,14 @@ export class GenerationService {
         content.layoutConfig.logoUrl = params.options?.logoUrl || user?.logoUrl;
         content.layoutConfig.productImageUrl = params.options?.productImageUrl || user?.productImageUrl;
         const businessAddress = typeof params.options?.businessAddress === 'string'
-          ? params.options.businessAddress.replace(/\\s+/g, ' ').trim().slice(0, 80)
+          ? params.options.businessAddress.replace(/\s+/g, ' ').trim().slice(0, 80)
           : '';
         if (businessAddress && !String(content.layoutConfig.body || '').includes(businessAddress)) {
           // The SVG templates display at most 130 body characters across two lines.
           // Reserve space for the address so the contact detail is not silently clipped.
           const addressSuffix = ` | ${businessAddress}`;
           const availableBodyChars = Math.max(0, 128 - addressSuffix.length);
-          const bodyText = String(content.layoutConfig.body || '').replace(/\\s+/g, ' ').trim().slice(0, availableBodyChars);
+          const bodyText = String(content.layoutConfig.body || '').replace(/\s+/g, ' ').trim().slice(0, availableBodyChars);
           content.layoutConfig.body = `${bodyText}${addressSuffix}`;
         }
         if (params.options?.conceptStyle) {
