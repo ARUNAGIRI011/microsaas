@@ -139,15 +139,28 @@ export class SecurityTestService {
     // Test 4: Unverified Payment cannot grant paid subscription
     try {
       const testUserId = 'usr-tamper-test';
-      const order = PaymentService.createOrder(testUserId, 'PRO');
+      const testOrderId = 'order_security_test';
+      // Use an isolated in-memory order fixture so this security test never creates a billable gateway order.
+      db.payments.set('pay-security-test', {
+        id: 'pay-security-test',
+        userId: testUserId,
+        orderId: testOrderId,
+        amount: 1499,
+        currency: 'INR',
+        planId: 'PRO',
+        status: 'CREATED',
+        verified: false,
+        createdAt: new Date().toISOString()
+      });
 
-      // Attempt verification with an invalid signature
+      // Attempt verification with an invalid signature (or absent credentials).
       const fakeVerification = PaymentService.verifyPayment({
         userId: testUserId,
-        orderId: order.orderId,
+        orderId: testOrderId,
         paymentId: 'pay_tampered_fake_id',
         signature: 'invalid_tampered_signature_xyz'
       });
+      db.payments.delete('pay-security-test');
 
       const passed = !fakeVerification.verified;
 
