@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 
 const API_BASE = 'https://api.higgsfield.ai';
 const MODEL_TEXT = 'bytedance/seedance-2.5/text-to-video';
@@ -49,10 +50,11 @@ async function uploadReferenceImage(dataUrl: string, key: string): Promise<strin
     throw new Error(uploadData.message || 'Higgsfield did not provide a reference upload URL.');
   }
 
+  const uploadBlob = new Blob([Uint8Array.from(bytes).buffer as ArrayBuffer], { type: mimeType });
   const putResponse = await fetch(uploadData.upload_url, {
     method: 'PUT',
     headers: uploadData.upload_headers || { 'Content-Type': mimeType },
-    body: new Blob([bytes], { type: mimeType })
+    body: uploadBlob
   });
   if (!putResponse.ok) throw new Error('Could not upload the product reference image to the video provider.');
   return uploadData.public_url;
