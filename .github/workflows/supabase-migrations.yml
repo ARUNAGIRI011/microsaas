@@ -1,0 +1,40 @@
+name: Supabase Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_target:
+        description: "Type the project ref to confirm the target"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    if: ${{ inputs.confirm_target == 'vvfwjtviygmsjbjxtvny' }}
+    runs-on: ubuntu-latest
+    environment: supabase-migrations
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate required secret
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "Missing SUPABASE_DB_URL GitHub Actions secret."
+            exit 1
+          fi
+
+      - name: Apply reviewed migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
