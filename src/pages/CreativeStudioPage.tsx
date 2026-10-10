@@ -680,7 +680,7 @@ export const CreativeStudioPage: React.FC = () => {
             <label className="text-xs font-semibold text-neutral-200">Business address / contact details</label>
             <textarea
               rows={2}
-              maxLength={500}
+              maxLength={80}
               value={businessAddress}
               onChange={(e) => setBusinessAddress(e.target.value)}
               placeholder="Shop address, city, phone or website to include in the creative"
