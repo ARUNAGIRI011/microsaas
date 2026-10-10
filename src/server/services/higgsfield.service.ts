@@ -187,11 +187,12 @@ Create a professional commercial poster image with clear hierarchy, attractive l
     const key = getApiKey();
     const productUrl = input.productImageDataUrl ? await uploadReference(input.productImageDataUrl, key) : undefined;
     const logoUrl = input.logoDataUrl ? await uploadReference(input.logoDataUrl, key) : undefined;
-    const refs = [productUrl, logoUrl].filter((url): url is string => Boolean(url));
+    const refs = [logoUrl, productUrl].filter((url): url is string => Boolean(url));
     const aspectRatio = ['1:1', '16:9', '9:16', '4:5', '3:4', '4:3'].includes(input.aspectRatio || '') ? input.aspectRatio! : '1:1';
     const prompt = `${input.prompt}\nCreate a polished, ready-to-publish small-business advertisement poster. Layout: ${aspectRatio}. Leave clear safe space for brand identity and readable copy. Use exact business details supplied in the prompt. Do not fabricate prices, phone numbers, addresses or claims. Keep logo/product appearance faithful to the references.`;
     const payload: Record<string, unknown> = { prompt, aspect_ratio: aspectRatio };
     if (refs.length) payload.image_url = refs[0];
+    if (refs.length > 1) payload.images_list = refs;
     const data = await postJson(IMAGE_MODEL, payload, key);
     const requestId = data.request_id || data.id;
     if (!requestId) throw new Error('MuAPI did not return an image request ID.');
