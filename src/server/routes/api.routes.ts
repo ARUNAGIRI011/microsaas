@@ -252,11 +252,19 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
         productImageDataUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined,
         aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '1:1'
       });
+      await CostTrackingService.record({ userId: user.id, provider: 'muapi', model: result.model, operation: 'poster-image-generation', status: 'succeeded' });
       return res.status(202).json({ success: true, ...result, message: 'MuAPI poster job submitted. Provider usage may be billed.' });
     }
     const result = await HiggsfieldService.generatePosterImage({
       prompt: prompt.trim().slice(0, 6000),
       aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '1:1'
+    });
+    await CostTrackingService.record({
+      userId: user.id,
+      provider: result.provider === 'gemini' ? 'gemini-image' : result.provider,
+      model: result.model,
+      operation: 'poster-image-generation',
+      status: 'succeeded'
     });
     return res.json({
       success: true,
@@ -272,10 +280,17 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
     // the response so the UI never presents the fallback as AI-generated imagery.
     try {
       const aspect = typeof aspectRatio === 'string' ? aspectRatio : '1:1';
+      const selectedProvider = provider === 'muapi' ? 'muapi' : provider === 'gemini' ? 'gemini-image' : 'huggingface';
+      await CostTrackingService.record({
+        userId: user.id, provider: selectedProvider,
+        model: selectedProvider === 'huggingface' ? (process.env.HF_IMAGE_MODEL || 'black-forest-labs/FLUX.1-schnell') : selectedProvider === 'gemini-image' ? (process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-lite-image') : 'nano-banana',
+        operation: 'poster-image-generation', status: 'failed'
+      });
       const generated = await GeminiService.generateCreativeAsset(
         'promotional_poster',
         prompt.trim().slice(0, 6000),
-        { aspectRatio: aspect, language: 'English' }
+        { aspectRatio: aspect, language: 'English' },
+        user.id
       );
       const layout = (generated.layoutConfig || {}) as Record<string, string | undefined>;
       const svg = generatePosterSVG({
@@ -292,6 +307,11 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
         brandName: user.businessName,
         logoUrl: typeof logoDataUrl === 'string' ? logoDataUrl : undefined,
         productImageUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined
+      });
+      await CostTrackingService.record({
+        userId: user.id, provider: 'bizmate-svg-fallback', model: 'editable-svg',
+        operation: 'poster-image-generation-fallback', status: 'succeeded', costUsd: 0,
+        pricingSource: 'no-external-inference'
       });
       return res.json({
         success: true,
@@ -338,6 +358,7 @@ apiRouter.post('/videos/higgsfield/generate', async (req: Request, res: Response
       aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '9:16',
       duration: Number(duration) || 5
     });
+    await CostTrackingService.record({ userId: user.id, provider: 'muapi', model: result.model, operation: 'ugc-video-generation', status: 'succeeded' });
     return res.status(202).json({ success: true, ...result, message: 'Video job submitted to Open-Higgsfield. Poll status until completed.' });
   } catch (error: any) {
     const message = error?.message || 'Could not submit the video job.';
