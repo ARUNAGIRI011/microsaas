@@ -164,7 +164,7 @@ class Database {
       id: 'sub-demo-001',
       userId: demoUser.id,
       organizationId: demoOrgId,
-      planId: 'PRO',
+      planId: 'FREE',
       status: 'ACTIVE',
       currentPeriodStart: new Date(Date.now() - 5 * 86400000).toISOString(),
       currentPeriodEnd: new Date(Date.now() + 25 * 86400000).toISOString(),
@@ -173,20 +173,11 @@ class Database {
 
     this.usageBalances.set(demoUser.id, {
       userId: demoUser.id,
-      totalCredits: 2000,
-      usedCredits: 120,
+      totalCredits: 0,
+      usedCredits: 0,
       reservedCredits: 0,
-      remainingCredits: 1880,
+      remainingCredits: 0,
       updatedAt: new Date().toISOString()
-    });
-
-    this.usageLedger.push({
-      id: 'led-init-001',
-      userId: demoUser.id,
-      amount: 2000,
-      type: 'PLAN_ALLOCATION',
-      description: 'Monthly Business Pro credit allocation',
-      timestamp: new Date(Date.now() - 5 * 86400000).toISOString()
     });
 
     // 2. Admin User Profile
@@ -207,89 +198,13 @@ class Database {
 
     this.usageBalances.set(adminUser.id, {
       userId: adminUser.id,
-      totalCredits: 99999,
+      totalCredits: 0,
       usedCredits: 0,
       reservedCredits: 0,
-      remainingCredits: 99999,
+      remainingCredits: 0,
       updatedAt: new Date().toISOString()
     });
 
-    // Seed a couple of initial generation jobs for demo
-    this.seedDemoGenerations(demoUser.id);
-  }
-
-  private seedDemoGenerations(userId: string) {
-    const jobId1 = 'job-seed-001';
-    const outputId1 = 'out-seed-001';
-    const assetId1 = 'ast-seed-001';
-
-    const job1: GenerationJob = {
-      id: jobId1,
-      userId,
-      type: 'promotional_poster',
-      prompt: 'Create a Deepavali promotion for my clothing shop in Chennai with 40% discount',
-      businessRequirement: 'Deepavali grand sale for saree, silk shirts, and kids ethnic wear',
-      options: {
-        aspectRatio: '1:1',
-        tone: 'festive',
-        brandColors: ['#B91C1C', '#F59E0B'],
-        includeOffer: true,
-        offerText: 'FLAT 40% OFF'
-      },
-      creditsCost: 20,
-      creditsReserved: false,
-      status: 'COMPLETED',
-      provider: 'gemini-3.8-flash',
-      providerClassification: 'FREE_PROVIDER',
-      createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-      updatedAt: new Date(Date.now() - 2 * 86400000).toISOString()
-    };
-
-    const output1: GenerationOutput = {
-      id: outputId1,
-      jobId: jobId1,
-      userId,
-      type: 'promotional_poster',
-      title: 'Grand Deepavali Silk Festival 2026',
-      content: {
-        text: 'Illuminate Your Celebrations! Discover pure Kanchipuram silks, festive dhotis, and designer ethnic wear with unmatched festive discounts in Chennai.',
-        headlines: ['DEEPAVALI GRAND SILK FESTIVAL', 'Pure Tradition. Pure Elegance.'],
-        bodyCopy: 'Step into tradition with handcrafted Pure Silk Sarees, Linen Kurtas, and Kids Ethnic sets. Exclusive Chennai showroom offer valid until Diwali night.',
-        callToAction: 'Visit Our T. Nagar & Anna Nagar Stores Today!',
-        layoutConfig: {
-          headline: 'DEEPAVALI GRAND SILK FESTIVAL',
-          subhead: 'Exclusive Festive Heritage Collection',
-          body: 'Handwoven Kanchipuram Sarees & Royal Ethnic Wear. Get Flat 40% Festive Cash discount on all festive purchases above ₹4,999.',
-          cta: 'SHOP IN CHENNAI OR ORDER ON WHATSAPP',
-          badgeText: 'FLAT 40% OFF',
-          badgeColor: '#F59E0B',
-          backgroundColor: '#881337',
-          textColor: '#FFFBEB',
-          accentColor: '#FBBF24',
-          aspectRatio: '1:1'
-        }
-      },
-      assetId: assetId1,
-      createdAt: new Date(Date.now() - 2 * 86400000).toISOString()
-    };
-
-    const asset1: Asset = {
-      id: assetId1,
-      userId,
-      jobId: jobId1,
-      name: 'Deepavali_Festival_Poster_2026.png',
-      type: 'promotional_poster',
-      mimeType: 'image/png',
-      sizeBytes: 420100,
-      storagePath: `users/${userId}/posters/${assetId1}.png`,
-      downloadUrl: `/api/v1/assets/${assetId1}/download`,
-      previewUrl: `/api/v1/assets/${assetId1}/preview`,
-      createdAt: new Date(Date.now() - 2 * 86400000).toISOString()
-    };
-
-    this.generationJobs.set(jobId1, job1);
-    this.generationOutputs.set(outputId1, output1);
-    this.assets.set(assetId1, asset1);
   }
 
   // Row Level Security (RLS) enforcement helper
