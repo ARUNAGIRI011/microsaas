@@ -43,28 +43,18 @@ The Supabase registration endpoint sends a best-effort welcome email through Res
 
 Never use a `VITE_*` prefix for the API key. Verify your sending domain and its DNS records in Resend before sending to customers. Resend currently has no verified domains in the connected account, so production delivery will not work until a domain you control is added and verified. If email settings are absent or Resend rejects a message, registration still succeeds and the API reports `welcomeEmailSent: false`; provider errors are logged server-side without exposing credentials.
 
-### 6. Configure Open-Higgsfield-compatible image/video generation
+### 6. Configure low-cost AI poster generation and UGC video
+Poster generation now supports a provider switch through `POSTER_IMAGE_PROVIDER`:
+- `huggingface` (default): Hugging Face Inference Providers using FLUX.1-schnell. Configure server-only `HF_TOKEN` with Inference Providers permission. Hugging Face's free account currently includes a small monthly credit (listed as $0.10 and subject to change), not unlimited generation. This text-to-image endpoint does not apply uploaded logo/product reference images.
+- `gemini`: configure `GEMINI_API_KEY`; the default model is `gemini-3.1-flash-lite-image`. Gemini text models can have a free tier, but native image-generation models are currently listed without a standard free API tier. Choose this provider only if you accept the current image-generation pricing.
+- `muapi`: uses the legacy Open-Higgsfield-compatible `nano-banana` poster job and supports uploaded references. Configure server-only `MUAPI_API_KEY`; model usage may be billed.
+The default is Hugging Face to avoid silently falling back to a paid provider. If its credit is exhausted or its selected model/provider is unavailable, the API reports the error rather than switching to a paid provider unexpectedly. Set `HF_IMAGE_ENDPOINT` only if you intentionally use a different compatible endpoint; default: `https://router.huggingface.co/fal-ai/fal-ai/flux/schnell`.
 
-BizMate AI now calls the MuAPI endpoints used by the [Open-Higgsfield-AI open-source project](https://github.com/Autom8AI/Open-Higgsfield-AI) for poster images and UGC video jobs. The project is a Next.js studio/UI and model catalogue; its README says inference is performed by MuAPI and requires a MuAPI API key. Open source does **not** mean the generation compute/API is unlimited or free.
+For UGC videos, the existing MuAPI/Seedance integration still requires `MUAPI_API_KEY` and can be billed. Open-Higgsfield is an open-source studio/model catalogue, not a free self-hosted inference engine. No provider keys belong in `VITE_*` variables or source control.
 
-Add `MUAPI_API_KEY` as a **server-only** environment variable in Vercel Preview and Production. Do not use a `VITE_*` prefix. Create the key in the MuAPI account and check its free quota/pricing before allowing customer generation. No MuAPI key is embedded in the repository.
+To configure on Vercel, add the needed variables separately to Preview and Production. For a lower-cost first test, set `POSTER_IMAGE_PROVIDER=huggingface`, add `HF_TOKEN`, and submit one small poster before enabling customer traffic. Use the editable SVG poster for exact logos, typography, and contact details; image models may render text or branding imperfectly.
 
-- Poster, Instagram creative, and YouTube thumbnail generation submits a `nano-banana` image job.
-- UGC video generation submits a Seedance 2.0 text-to-video job, or image-to-video when a supported product/logo reference is uploaded.
-- The API uses `POST /api/v1/{model-endpoint}` and polls `GET /api/v1/predictions/{request_id}/result`, matching the upstream project pattern.
-- Output images/videos are shown in the Creative Studio when the provider reports a completed job.
-- Uploaded PNG/JPEG/WebP references are forwarded through MuAPI's upload endpoint. Generated model text may not preserve logos, phone numbers, or addresses exactly; keep the existing SVG poster as a precise, editable brand-layout option.
-
-Reference: [Open-Higgsfield-AI README and API details](https://github.com/Autom8AI/Open-Higgsfield-AI) and [MuAPI endpoint example](https://github.com/Anil-matcha/Seedance-2.0-API).
-
-## Recommended export formats
-
-- Posters/social feed: PNG for crisp text and transparent assets; JPEG for smaller photo-heavy files. Keep SVG as an optional editable/vector export.
-- Instagram feed creative: 1080×1350 (4:5) or 1080×1080 (1:1).
-- YouTube thumbnail: 1280×720 (16:9), PNG or JPEG, under YouTube's current upload-size limit.
-- Reels/Shorts/TikTok UGC video: MP4 (H.264 video + AAC audio), vertical 9:16, typically 1080×1920; use a 5–15 second first cut for ads, then extend as needed.
-- Landscape video: MP4, 16:9 for YouTube/web.
-- Keep the text-only .txt export removed from the poster canvas. Use image/video formats for the actual creative; keep JSON only as an optional editable layout blueprint.
+Reference: [Hugging Face image generation and inference providers](https://huggingface.co/docs/inference-providers/guides/first-api-call), [Hugging Face pricing](https://huggingface.co/docs/inference-providers/pricing), [Gemini image generation](https://ai.google.dev/gemini-api/docs/image-generation), [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing), and [Open-Higgsfield-AI](https://github.com/Autom8AI/Open-Higgsfield-AI).
 
 ### 7. Run the pipeline
 
