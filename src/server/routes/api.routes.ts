@@ -13,8 +13,76 @@ import { IntegrationsService } from '../services/integrations.service.ts';
 import { SecurityTestService } from '../services/security-test.service.ts';
 import { PlanId } from '../types/index.ts';
 import { generatePosterSVG } from '../../lib/svg-generator.ts';
+import { SupabaseAuthService } from '../services/supabase-auth.service.ts';
 
 export const apiRouter = Router();
+
+// Supabase Auth endpoints are the first migration step. Existing legacy routes still
+// use the in-memory demo adapter and must not be treated as production-secure yet.
+apiRouter.post('/auth/supabase/register', async (req: Request, res: Response) => {
+  const { email, password, name, businessName, industry } = req.body ?? {};
+  if (typeof email !== 'string' || typeof password !== 'string' || typeof name !== 'string') {
+    return res.status(400).json({
+      success: false,
+      errorCode: 'VALIDATION_ERROR',
+      error: 'Email, password, and name are required'
+    });
+  }
+  if (password.length < 10) {
+    return res.status(400).json({
+      success: false,
+      errorCode: 'VALIDATION_ERROR',
+      error: 'Password must contain at least 10 characters'
+    });
+  }
+  try {
+    const result = await SupabaseAuthService.register({ email, password, name, businessName, industry });
+    return res.status(201).json({ success: true, ...result });
+  } catch (error: any) {
+    const message = error?.message || 'Registration failed';
+    const status = /already registered|already exists/i.test(message) ? 409 : 400;
+    return res.status(status).json({ success: false, errorCode: 'AUTH_REGISTRATION_FAILED', error: message });
+  }
+});
+
+apiRouter.post('/auth/supabase/login', async (req: Request, res: Response) => {
+  const { email, password } = req.body ?? {};
+  if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
+    return res.status(400).json({
+      success: false,
+      errorCode: 'VALIDATION_ERROR',
+      error: 'Email and password are required'
+    });
+  }
+  try {
+    const result = await SupabaseAuthService.login(email, password);
+    return res.json({ success: true, ...result });
+  } catch {
+    return res.status(401).json({ success: false, errorCode: 'AUTH_REQUIRED', error: 'Invalid email or password' });
+  }
+});
+
+apiRouter.get('/auth/supabase/me', async (req: Request, res: Response) => {
+  const authorization = req.header('authorization') || '';
+  const match = authorization.match(/^Bearer\\s+(.+)$/i);
+  if (!match) {
+    return res.status(401).json({ success: false, errorCode: 'AUTH_REQUIRED', error: 'Bearer access token required' });
+  }
+  try {
+    const user = await SupabaseAuthService.getCurrentUser(match[1]);
+    return res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        emailConfirmedAt: user.email_confirmed_at,
+        userMetadata: user.user_metadata
+      }
+    });
+  } catch {
+    return res.status(401).json({ success: false, errorCode: 'AUTH_REQUIRED', error: 'Invalid or expired access token' });
+  }
+});
 
 // Middleware: Extract current authenticated user
 // For MVP with session simulation, defaults to demo user or x-user-id header
