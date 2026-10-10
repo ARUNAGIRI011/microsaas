@@ -34,9 +34,9 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 selection:bg-amber-500 selection:text-neutral-950">
+    <div className="min-h-screen premium-home min-h-screen bg-neutral-950 text-neutral-100 selection:bg-amber-500 selection:text-neutral-950">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-20 pb-28 px-4 sm:px-6 lg:px-8 border-b border-neutral-900">
+      <section className="premium-hero relative overflow-hidden pt-20 pb-20 px-4 sm:px-6 lg:px-8 border-b border-neutral-900">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.15),rgba(255,255,255,0))] pointer-events-none" />
 
         <div className="max-w-5xl mx-auto text-center space-y-6 relative z-10">
@@ -116,6 +116,22 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
         </div>
+          <div className="premium-showcase" aria-label="Preview of branded marketing designs">
+            <div className="showcase-orbit showcase-orbit-one" />
+            <div className="showcase-orbit showcase-orbit-two" />
+            <div className="showcase-floating-tag showcase-tag-top"><Sparkles className="w-4 h-4" /> Brand-aware AI</div>
+            <div className="showcase-poster showcase-poster-back">
+              <div className="showcase-poster-kicker">YOUR NEXT CAMPAIGN</div>
+              <div className="showcase-poster-art"><span>CREATE</span><span>WITHOUT</span><strong>LIMITS.</strong></div>
+              <div className="showcase-poster-foot">MADE FOR YOUR BRAND · 2026</div>
+            </div>
+            <div className="showcase-poster showcase-poster-front">
+              <div className="showcase-mini-brand"><span className="showcase-brand-mark">B</span><span>BIZMATE STUDIO</span><span className="showcase-live-dot" /></div>
+              <div className="showcase-product-orb"><span>✦</span></div>
+              <div className="showcase-poster-copy"><small>YOUR BRAND. YOUR LANGUAGE.</small><strong>Make every<br/>moment matter.</strong><span>POSTER · SOCIAL · VIDEO</span></div>
+            </div>
+            <div className="showcase-floating-tag showcase-tag-bottom"><span className="showcase-check">✓</span> Logo + brand colors applied</div>
+          </div>
       </section>
 
       {/* Core Workflow Pipeline */}
