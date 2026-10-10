@@ -29,10 +29,10 @@ export class CreditService {
     if (!balance) {
       balance = {
         userId,
-        totalCredits: 50,
+        totalCredits: 0,
         usedCredits: 0,
         reservedCredits: 0,
-        remainingCredits: 50,
+        remainingCredits: 0,
         updatedAt: new Date().toISOString()
       };
       db.usageBalances.set(userId, balance);
