@@ -121,92 +121,6 @@ class Database {
   public payments: Map<string, PaymentRecord> = new Map();
   public auditLogs: AuditLog[] = [];
 
-  constructor() {
-    this.seedInitialData();
-  }
-
-  private seedInitialData() {
-    const demoOrgId = 'org-demo-001';
-    this.organizations.set(demoOrgId, {
-      id: demoOrgId,
-      name: 'Chennai Silks & Apparel',
-      ownerId: 'usr-demo-001',
-      createdAt: new Date().toISOString()
-    });
-
-    // 1. Regular User Profile
-    const demoUser: UserProfile = {
-      id: 'usr-demo-001',
-      email: 'demo@bizmate.ai',
-      name: 'Arun Muthu',
-      role: 'USER',
-      organizationId: demoOrgId,
-      emailVerified: true,
-      businessName: 'Chennai Silks & Apparel',
-      industry: 'Retail & Fashion',
-      brandColors: ['#B91C1C', '#F59E0B', '#1E3A8A'],
-      targetAudience: 'Families, festive shoppers, and wedding attendees in South India',
-      createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    this.users.set(demoUser.id, demoUser);
-    this.passwords.set(demoUser.email, 'password123');
-
-    this.organizationMembers.set('mem-demo-001', {
-      id: 'mem-demo-001',
-      organizationId: demoOrgId,
-      userId: demoUser.id,
-      role: 'owner',
-      createdAt: demoUser.createdAt
-    });
-
-    this.subscriptions.set(demoUser.id, {
-      id: 'sub-demo-001',
-      userId: demoUser.id,
-      organizationId: demoOrgId,
-      planId: 'FREE',
-      status: 'ACTIVE',
-      currentPeriodStart: new Date(Date.now() - 5 * 86400000).toISOString(),
-      currentPeriodEnd: new Date(Date.now() + 25 * 86400000).toISOString(),
-      cancelAtPeriodEnd: false
-    });
-
-    this.usageBalances.set(demoUser.id, {
-      userId: demoUser.id,
-      totalCredits: 0,
-      usedCredits: 0,
-      reservedCredits: 0,
-      remainingCredits: 0,
-      updatedAt: new Date().toISOString()
-    });
-
-    // 2. Admin User Profile
-    const adminUser: UserProfile = {
-      id: 'usr-admin-001',
-      email: 'admin@bizmate.ai',
-      name: 'System Administrator',
-      role: 'SUPER_ADMIN',
-      organizationId: 'org-admin-001',
-      emailVerified: true,
-      businessName: 'BizMate AI Operations',
-      industry: 'SaaS Platform Management',
-      createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    this.users.set(adminUser.id, adminUser);
-    this.passwords.set(adminUser.email, 'admin123');
-
-    this.usageBalances.set(adminUser.id, {
-      userId: adminUser.id,
-      totalCredits: 0,
-      usedCredits: 0,
-      reservedCredits: 0,
-      remainingCredits: 0,
-      updatedAt: new Date().toISOString()
-    });
-
-  }
-
   // Row Level Security (RLS) enforcement helper
   public enforceRLS(requesterId: string, resourceOwnerId: string, isAdminAllowed = true): boolean {
     if (requesterId === resourceOwnerId) return true;
@@ -239,10 +153,10 @@ class Database {
     if (!balance) {
       balance = {
         userId,
-        totalCredits: 50,
+        totalCredits: 0,
         usedCredits: 0,
         reservedCredits: 0,
-        remainingCredits: 50,
+        remainingCredits: 0,
         updatedAt: new Date().toISOString()
       };
       this.usageBalances.set(userId, balance);
