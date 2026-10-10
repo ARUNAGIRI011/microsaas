@@ -5,13 +5,14 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
 import { IntegrationStatus, PlanId } from '../types/index.ts';
 import { db, PLANS } from '../db/database.ts';
 
 export class IntegrationsService {
   public static getAllStatuses(): IntegrationStatus[] {
     const isGeminiSet = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 5);
-    const isSupabaseSet = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+    const isSupabaseSet = Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY));
     const isRazorpaySet = Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
     const isEmailSet = Boolean(process.env.RESEND_API_KEY);
     const isWhatsSet = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
@@ -32,10 +33,10 @@ export class IntegrationsService {
         name: 'Supabase PostgreSQL & Auth',
         category: 'DATABASE',
         configured: isSupabaseSet,
-        statusText: isSupabaseSet ? 'CONFIGURED & ACTIVE' : 'CONFIGURED & ACTIVE',
+        statusText: isSupabaseSet ? 'CONFIGURED & ACTIVE' : 'NOT CONFIGURED / NOT TESTED',
         details: isSupabaseSet
-          ? 'Connected to remote Supabase PostgreSQL instance with RLS.'
-          : 'PostgreSQL relational core active with multi-tenant RLS enforcement and atomic ledger.'
+          ? 'Supabase URL and publishable key are present; run the connection test to verify the database schema and RLS.'
+          : 'Supabase URL or publishable key is missing. The app currently has an in-memory fallback; remote persistence is not active.'
       },
       {
         name: 'Razorpay Payment Gateway',
@@ -133,16 +134,51 @@ export class IntegrationsService {
   /**
    * Test Supabase / Database integrity and RLS isolation
    */
-  public static testDatabase(): { success: boolean; tables: string[]; rlsVerified: boolean; latencyMs: number } {
+  public static async testDatabase(): Promise<{ success: boolean; tables: string[]; rlsVerified: boolean; latencyMs: number; error?: string }> {
     const t0 = Date.now();
-    const tables = ['users', 'organizations', 'subscriptions', 'usage_balances', 'usage_ledger', 'generation_jobs', 'assets', 'payments'];
-    const rlsVerified = !db.enforceRLS('usr-demo-001', 'usr-admin-001'); // Cross-tenant blocked
-    return {
-      success: true,
-      tables,
-      rlsVerified,
-      latencyMs: Date.now() - t0
-    };
+    const url = process.env.SUPABASE_URL?.trim();
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY?.trim() || process.env.SUPABASE_ANON_KEY?.trim();
+
+    if (!url || !key) {
+      return {
+        success: false,
+        tables: [],
+        rlsVerified: false,
+        latencyMs: Date.now() - t0,
+        error: 'SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY must be configured.'
+      };
+    }
+
+    try {
+      const client = createClient(url, key, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      });
+      const { error } = await client.from('profiles').select('id').limit(1);
+      if (error) {
+        return {
+          success: false,
+          tables: [],
+          rlsVerified: false,
+          latencyMs: Date.now() - t0,
+          error: error.message
+        };
+      }
+      return {
+        success: true,
+        tables: ['profiles'],
+        // A successful query alone does not prove tenant isolation; that needs authenticated RLS tests.
+        rlsVerified: false,
+        latencyMs: Date.now() - t0
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        tables: [],
+        rlsVerified: false,
+        latencyMs: Date.now() - t0,
+        error: error?.message || 'Supabase connection test failed.'
+      };
+    }
   }
 
   /**
