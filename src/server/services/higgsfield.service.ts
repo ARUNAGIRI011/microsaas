@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 const API_BASE = 'https://api.higgsfield.ai';
 const MODEL_TEXT = 'bytedance/seedance-2.5/text-to-video';
 const MODEL_IMAGE = 'bytedance/seedance-2.5/image-to-video';
+const MODEL_REFERENCE = 'bytedance/seedance-2.5/reference-to-video';
 
 function getApiKey(): string {
   const key = process.env.HIGGSFIELD_API_KEY?.trim();
@@ -66,6 +67,7 @@ export class HiggsfieldService {
     userId: string;
     prompt: string;
     productImageDataUrl?: string;
+    logoDataUrl?: string;
     language: string;
     aspectRatio?: string;
     duration?: number;
@@ -77,7 +79,10 @@ export class HiggsfieldService {
     const imageUrl = input.productImageDataUrl
       ? await uploadReferenceImage(input.productImageDataUrl, key)
       : undefined;
-    const model = imageUrl ? MODEL_IMAGE : MODEL_TEXT;
+    const logoUrl = input.logoDataUrl
+      ? await uploadReferenceImage(input.logoDataUrl, key)
+      : undefined;
+    const model = imageUrl && logoUrl ? MODEL_REFERENCE : imageUrl ? MODEL_IMAGE : MODEL_TEXT;
     const body: Record<string, unknown> = {
       prompt: `${input.prompt}\nCreate a natural, creator-style UGC advertisement. Language for any spoken dialogue or on-screen wording: ${input.language}. Keep the product appearance realistic; do not invent prices, guarantees, contact details, or claims.`,
       duration,
@@ -86,7 +91,8 @@ export class HiggsfieldService {
       output_format: 'mp4',
       generate_audio: true
     };
-    if (imageUrl) body.image_url = imageUrl;
+    if (imageUrl && logoUrl) body.image_urls = [imageUrl, logoUrl];
+    else if (imageUrl) body.image_url = imageUrl;
 
     const response = await fetch(`${API_BASE}/${model}`, {
       method: 'POST',
