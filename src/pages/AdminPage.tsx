@@ -272,11 +272,13 @@ export const AdminPage: React.FC = () => {
           <p className="text-xs text-neutral-400 mt-1">Token usage and configured cost estimates. Unpriced calls are not treated as free.</p>
           {providerUsage && <p className="text-[10px] text-neutral-500 mt-1">Storage: {providerUsage.summary.storage === 'supabase' ? 'Supabase durable ledger' : 'Process memory only'}</p>}
         </div>
+          <p className="text-[11px] text-neutral-400">Only provider calls recorded by the server are shown. Spend totals include configured cost estimates only; unpriced calls are excluded from the dollar total and are not assumed to cost $0. These are not provider invoices.</p>
+
         {providerUsage ? (
           <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="rounded-xl bg-neutral-950 border border-neutral-800 p-4">
-                <p className="text-[11px] text-neutral-400">Estimated spend (USD)</p>
+                <p className="text-[11px] text-neutral-400">Estimated priced spend (USD)</p>
                 <p className="mt-2 text-xl font-extrabold font-mono text-emerald-300">USD {Number(providerUsage.summary.estimatedSpendUsd || 0).toFixed(6)}</p>
                 <p className="mt-1 text-[10px] text-neutral-500">Priced events only</p>
               </div>
