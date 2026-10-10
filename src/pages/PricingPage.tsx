@@ -12,8 +12,6 @@ export const PricingPage: React.FC = () => {
   const { user, subscription, navigate, addToast, refreshUserData } = useApp();
   const [billingCycle, setBillingCycle] = useState<'month' | 'year'>('month');
   const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [orderData, setOrderData] = useState<any>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
 
   const handleSelectPlan = async (planId: PlanId) => {
@@ -21,76 +19,91 @@ export const PricingPage: React.FC = () => {
       navigate('/register');
       return;
     }
-
     if (planId === 'FREE') {
       addToast('You are already on the Free Starter plan', 'info');
       return;
     }
+    if (processingPayment) return;
 
     setUpgradingPlan(planId);
+    setProcessingPayment(true);
     try {
       const res = await fetch('/api/v1/payments/create-order', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id
-        },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
         body: JSON.stringify({ planId })
       });
       const data = await res.json();
-      if (data.success) {
-        setOrderData(data.order);
-        setPaymentModalOpen(true);
-      } else {
-        addToast(data.error || 'Failed to create payment order', 'error');
+      if (!res.ok || !data.success || !data.order?.orderId || !data.order?.keyId) {
+        throw new Error(data.error || 'Razorpay checkout is not configured. Please try again later.');
       }
-    } catch (err) {
-      addToast('Error initiating checkout order', 'error');
-    }
-  };
 
-  const handleSimulatePayment = async (signatureStatus: 'valid' | 'invalid') => {
-    if (!orderData || !upgradingPlan || !user) return;
-    setProcessingPayment(true);
-
-    try {
-      const paymentId = `pay_sim_${Date.now()}`;
-      const signature =
-        signatureStatus === 'valid'
-          ? `valid_sig_${Date.now()}_987654321`
-          : 'tampered_bad_signature_xyz';
-
-      const res = await fetch('/api/v1/payments/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id
-        },
-        body: JSON.stringify({
-          orderId: orderData.orderId,
-          paymentId,
-          signature
-        })
+      const loadRazorpay = () => new Promise<boolean>((resolve) => {
+        if ((window as any).Razorpay) return resolve(true);
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => resolve(Boolean((window as any).Razorpay));
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
       });
 
-      const data = await res.json();
-      if (data.success && data.verified) {
-        addToast(`Payment Verified! Upgraded to ${upgradingPlan} plan. Credits credited to balance!`, 'success');
-        setPaymentModalOpen(false);
-        await refreshUserData();
-        navigate('/dashboard');
-      } else {
-        addToast(`Payment verification rejected: ${data.error || 'Invalid signature'}`, 'error');
+      if (!(await loadRazorpay())) {
+        throw new Error('Could not load Razorpay checkout. Check your connection and retry.');
       }
-    } catch (err) {
-      addToast('Error verifying payment transaction', 'error');
-    } finally {
+
+      const checkout = new (window as any).Razorpay({
+        key: data.order.keyId,
+        amount: data.order.amount,
+        currency: data.order.currency || 'INR',
+        name: 'BizMate AI',
+        description: `${planId} subscription`,
+        order_id: data.order.orderId,
+        prefill: { name: user.name || '', email: user.email || '' },
+        notes: { planId },
+        theme: { color: '#a78bfa' },
+        handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+          try {
+            const verifyRes = await fetch('/api/v1/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+              body: JSON.stringify({
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature
+              })
+            });
+            const verification = await verifyRes.json();
+            if (!verifyRes.ok || !verification.success || !verification.verified) {
+              throw new Error(verification.error || 'Payment verification failed.');
+            }
+            addToast(`Payment verified. Your ${planId} plan is now active.`, 'success');
+            await refreshUserData();
+            navigate('/dashboard');
+          } catch (error: any) {
+            addToast(error?.message || 'Payment verification failed. Contact support with your payment ID.', 'error');
+          } finally {
+            setProcessingPayment(false);
+          }
+        },
+        modal: {
+          ondismiss: () => setProcessingPayment(false)
+        }
+      });
+      checkout.on('payment.failed', (response: any) => {
+        setProcessingPayment(false);
+        addToast(response?.error?.description || 'Payment was not completed. You have not been charged for an unsuccessful payment.', 'error');
+      });
+      checkout.open();
       setProcessingPayment(false);
+    } catch (error: any) {
+      setProcessingPayment(false);
+      addToast(error?.message || 'Unable to start Razorpay checkout.', 'error');
     }
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 py-16 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen premium-pricing min-h-screen bg-neutral-950 text-neutral-100 py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Header */}
         <div className="text-center space-y-3">
@@ -98,7 +111,7 @@ export const PricingPage: React.FC = () => {
             <Zap className="w-3.5 h-3.5" />
             <span>Fair Credit Accounting & Zero Hidden Costs</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white">Simple, Transparent Pricing</h1>
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-white premium-gradient-text">Simple, Transparent Pricing</h1>
           <p className="text-neutral-400 text-sm max-w-xl mx-auto">
             Choose the right capacity for your retail store, brand, or marketing agency. Credits roll over with active subscriptions.
           </p>
@@ -351,69 +364,7 @@ export const PricingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Razorpay Simulation / Real Modal */}
-      {paymentModalOpen && orderData && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-700 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-amber-400" />
-                <h3 className="text-base font-bold text-white">Razorpay Secure Checkout</h3>
-              </div>
-              <button
-                onClick={() => setPaymentModalOpen(false)}
-                className="text-neutral-400 hover:text-white text-sm"
-              >
-                ✕
-              </button>
-            </div>
 
-            <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Selected Plan:</span>
-                <span className="font-bold text-white">{upgradingPlan}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Order ID:</span>
-                <span className="font-mono text-neutral-300">{orderData.orderId}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Amount:</span>
-                <span className="font-bold text-amber-400 text-sm">
-                  ₹{(orderData.amount / 100).toLocaleString()} INR
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Gateway Key:</span>
-                <span className="font-mono text-neutral-400">{orderData.keyId}</span>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-300 text-[11px] leading-relaxed">
-              <strong>Server-Side Verification:</strong> In accordance with Rule 20, subscription activation is never
-              granted from client callback alone. The server validates the cryptographic HMAC SHA-256 signature before allocating credits.
-            </div>
-
-            <div className="space-y-2 pt-2">
-              <button
-                onClick={() => handleSimulatePayment('valid')}
-                disabled={processingPayment}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg transition flex items-center justify-center gap-2"
-              >
-                {processingPayment ? 'Verifying with Server...' : 'Complete Payment (Valid Signature)'}
-              </button>
-
-              <button
-                onClick={() => handleSimulatePayment('invalid')}
-                disabled={processingPayment}
-                className="w-full py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-rose-400 font-semibold text-xs transition border border-rose-900/40"
-              >
-                Test Tampered Signature (Must Fail Verification)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
