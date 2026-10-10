@@ -220,6 +220,7 @@ export interface PaymentRecord {
   amount: number; // in INR
   currency: string;
   planId: PlanId;
+  billingInterval?: 'month' | 'year';
   status: 'CREATED' | 'CAPTURED' | 'FAILED' | 'REFUNDED';
   verified: boolean;
   createdAt: string;
