@@ -243,6 +243,7 @@ apiRouter.post('/videos/higgsfield/generate', async (req: Request, res: Response
       userId: user.id,
       prompt: prompt.trim().slice(0, 6000),
       productImageDataUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined,
+      logoDataUrl: typeof req.body.logoDataUrl === 'string' ? req.body.logoDataUrl : undefined,
       language: typeof language === 'string' ? language.slice(0, 60) : 'English',
       aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '9:16',
       duration: Number(duration) || 5
