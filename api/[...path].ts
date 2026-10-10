@@ -4,6 +4,7 @@
  */
 import express from 'express';
 import { apiRouter } from '../src/server/routes/api.routes.ts';
+import { RedisRateLimitService } from '../src/server/services/redis-rate-limit.service.ts';
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -30,6 +31,8 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// Shared Redis limiter must run before API handlers so every Vercel instance uses the same counters.
+app.use('/api/v1', RedisRateLimitService.middleware());
 app.use('/api/v1', apiRouter);
 
 export default app;
