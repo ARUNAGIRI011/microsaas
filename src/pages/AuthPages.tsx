@@ -1,6 +1,6 @@
 /**
  * BizMate AI - Authentication Pages
- * Realistic authentication with Supabase-style session tokens, business onboarding, and demo role pre-fills.
+ * Business onboarding and authentication forms.
  */
 
 import React, { useState } from 'react';
@@ -9,8 +9,8 @@ import { Sparkles, Shield, User, Lock, Mail, Building, ArrowRight } from 'lucide
 
 export const LoginPage: React.FC = () => {
   const { navigate, addToast, refreshUserData } = useApp();
-  const [email, setEmail] = useState('demo@bizmate.ai');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -46,35 +46,6 @@ export const LoginPage: React.FC = () => {
           </div>
           <h1 className="text-2xl font-extrabold text-white">Log in to BizMate AI</h1>
           <p className="text-neutral-400 text-xs">Enter your business email to access your creative studio</p>
-        </div>
-
-        {/* Quick Demo Pre-fills for Reviewer Convenience */}
-        <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 space-y-1.5 text-xs">
-          <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-400 font-bold">
-            ⚡ Quick Evaluator Pre-fills:
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('demo@bizmate.ai');
-                setPassword('password123');
-              }}
-              className="flex-1 py-1 px-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-[11px] font-semibold transition"
-            >
-              Demo User (Retail)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('admin@bizmate.ai');
-                setPassword('admin123');
-              }}
-              className="flex-1 py-1 px-2 rounded-lg bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 text-[11px] font-semibold transition border border-rose-900/40"
-            >
-              Super Admin
-            </button>
-          </div>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 text-xs">
@@ -133,7 +104,7 @@ export const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [industry, setIndustry] = useState('Retail & Fashion');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -147,7 +118,7 @@ export const RegisterPage: React.FC = () => {
       });
       const data = await res.json();
       if (data.success) {
-        addToast('Registration successful! Welcome to BizMate AI with 50 bonus credits.', 'success');
+        addToast('Registration request completed. Your account plan and available credits are shown after sign-in.', 'success');
         await refreshUserData();
         navigate('/dashboard');
       } else {
@@ -168,7 +139,7 @@ export const RegisterPage: React.FC = () => {
             <Sparkles className="w-5 h-5 text-neutral-950" />
           </div>
           <h1 className="text-2xl font-extrabold text-white">Create Your BizMate Account</h1>
-          <p className="text-neutral-400 text-xs">Start creating automated marketing campaigns with 50 free credits</p>
+          <p className="text-neutral-400 text-xs">Start creating automated marketing campaigns with your configured plan</p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-3.5 text-xs">
