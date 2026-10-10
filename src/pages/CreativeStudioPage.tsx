@@ -50,6 +50,19 @@ export const CreativeStudioPage: React.FC = () => {
   const [tone, setTone] = useState<'festive' | 'professional' | 'urgent' | 'luxury' | 'friendly'>('festive');
   const [offerText, setOfferText] = useState('FLAT 40% OFF');
   const [conceptStyle, setConceptStyle] = useState<ConceptStyle>('festive_heritage');
+  const [businessAddress, setBusinessAddress] = useState('');
+  const [posterLanguage, setPosterLanguage] = useState('Tamil');
+  const [thumbnailLanguage, setThumbnailLanguage] = useState('English');
+  const [videoLanguage, setVideoLanguage] = useState('Tamil');
+  const [videoJob, setVideoJob] = useState<{ requestId: string; requestToken: string } | null>(null);
+  const [videoStatus, setVideoStatus] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+
+  const contentLanguages = [
+    'English', 'Tamil', 'Hindi', 'Telugu', 'Malayalam', 'Kannada', 'Bengali',
+    'Marathi', 'Gujarati', 'Punjabi', 'Urdu', 'Odia', 'Assamese',
+    'Spanish', 'French', 'Arabic'
+  ];
 
   // User Uploads State
   const [logoUrl, setLogoUrl] = useState<string>(user?.logoUrl || '');
@@ -69,6 +82,36 @@ export const CreativeStudioPage: React.FC = () => {
   const [waModal, setWaModal] = useState(false);
   const [waPhone, setWaPhone] = useState('+919876543210');
   const [waSending, setWaSending] = useState(false);
+
+  // Poll the asynchronous Higgsfield render without blocking the page.
+  useEffect(() => {
+    if (!videoJob || ['completed', 'failed', 'canceled', 'cancelled', 'nsfw'].includes(videoStatus.toLowerCase())) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const res = await fetch('/api/v1/videos/higgsfield/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
+          body: JSON.stringify(videoJob)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setVideoStatus('failed');
+          addToast(data.error || 'Could not check video render status.', 'error');
+          return;
+        }
+        setVideoStatus(String(data.status || 'processing'));
+        if (data.videoUrl) setVideoUrl(data.videoUrl);
+        if (String(data.status).toLowerCase() === 'completed' && data.videoUrl) {
+          addToast('UGC video render completed.', 'success');
+        } else if (['failed', 'canceled', 'cancelled', 'nsfw'].includes(String(data.status).toLowerCase())) {
+          addToast(data.error || 'UGC video render did not complete.', 'error');
+        }
+      } catch {
+        // Keep polling through temporary network errors.
+      }
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [videoJob, videoStatus, user?.id, addToast]);
 
   // Check if initial prompt was passed from landing page
   useEffect(() => {
@@ -158,8 +201,42 @@ export const CreativeStudioPage: React.FC = () => {
 
     setGenerating(true);
     const idempotencyKey = `idem-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const selectedLanguage = selectedType === 'youtube_thumbnail'
+      ? thumbnailLanguage
+      : selectedType === 'promotional_video' ? videoLanguage : posterLanguage;
+    const businessContext = [
+      requirement.trim(),
+      businessAddress.trim() ? `Business address/contact to include: ${businessAddress.trim()}` : '',
+      `Write all poster/thumbnail text and any video dialogue in ${selectedLanguage}. Preserve the business name, address, phone numbers and URLs exactly.`
+    ].filter(Boolean).join('\n');
 
     try {
+      // Submit the paid video render first. If the provider is not configured, do not consume app credits.
+      if (selectedType === 'promotional_video') {
+        setVideoUrl('');
+        setVideoStatus('submitting');
+        const videoRes = await fetch('/api/v1/videos/higgsfield/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
+          body: JSON.stringify({
+            prompt: businessContext,
+            productImageDataUrl: productImageUrl || undefined,
+            language: videoLanguage,
+            aspectRatio: aspectRatio === '1:1' || aspectRatio === '16:9' || aspectRatio === '9:16' ? aspectRatio : '9:16',
+            duration: 5
+          })
+        });
+        const videoData = await videoRes.json();
+        if (!videoRes.ok || !videoData.success) {
+          setVideoStatus('failed');
+          addToast(videoData.error || 'Higgsfield video generation is not configured.', 'error');
+          return;
+        }
+        setVideoJob({ requestId: videoData.requestId, requestToken: videoData.requestToken });
+        setVideoStatus(videoData.status || 'queued');
+        addToast('UGC video queued with Higgsfield. Rendering may take a few minutes.', 'info');
+      }
+
       const res = await fetch('/api/v1/generations', {
         method: 'POST',
         headers: {
@@ -168,10 +245,12 @@ export const CreativeStudioPage: React.FC = () => {
         },
         body: JSON.stringify({
           type: selectedType,
-          prompt: requirement,
-          businessRequirement: requirement,
+          prompt: businessContext,
+          businessRequirement: businessContext,
           options: {
             aspectRatio,
+            language: selectedLanguage,
+            businessAddress,
             tone,
             offerText,
             conceptStyle,
@@ -439,7 +518,7 @@ export const CreativeStudioPage: React.FC = () => {
             { id: 'marketing_copy', name: 'Omnichannel Copy', icon: FileText, cost: 5 },
             { id: 'instagram_creative', name: 'Instagram Creative', icon: Share2, cost: 15 },
             { id: 'youtube_thumbnail', name: 'YouTube Thumbnail', icon: Sparkles, cost: 20 },
-            { id: 'promotional_video', name: '30s Video Script', icon: Video, cost: 30 },
+            { id: 'promotional_video', name: 'UGC Promo Video', icon: Video, cost: 30 },
             { id: 'whatsapp_creative', name: 'WhatsApp Broadcast', icon: MessageSquare, cost: 5 },
             { id: 'email_content', name: 'Email Newsletter', icon: Mail, cost: 5 },
             { id: 'business_report', name: 'Executive Report', icon: BarChart3, cost: 25 }
@@ -450,6 +529,7 @@ export const CreativeStudioPage: React.FC = () => {
                 setSelectedType(item.id as GenerationType);
                 if (item.id === 'youtube_thumbnail') setAspectRatio('16:9');
                 if (item.id === 'promotional_poster' || item.id === 'instagram_creative') setAspectRatio('1:1');
+                if (item.id === 'promotional_video') setAspectRatio('9:16');
               }}
               className={`p-4 rounded-xl border text-left transition flex flex-col justify-between space-y-2 cursor-pointer ${
                 selectedType === item.id
@@ -582,6 +662,41 @@ export const CreativeStudioPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Business contact and per-asset language settings */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-neutral-950 border border-neutral-800">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-neutral-200">Business address / contact details</label>
+            <textarea
+              rows={2}
+              value={businessAddress}
+              onChange={(e) => setBusinessAddress(e.target.value)}
+              placeholder="Shop address, city, phone or website to include in the creative"
+              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100 focus:outline-hidden focus:border-amber-400"
+            />
+            <p className="text-[10px] text-neutral-500">Only include contact details you want shown publicly in the ad.</p>
+          </div>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-neutral-200">Poster language</label>
+              <select value={posterLanguage} onChange={(e) => setPosterLanguage(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100">
+                {contentLanguages.map((language) => <option key={language} value={language}>{language}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-neutral-200">YouTube thumbnail language</label>
+              <select value={thumbnailLanguage} onChange={(e) => setThumbnailLanguage(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100">
+                {contentLanguages.map((language) => <option key={language} value={language}>{language}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-neutral-200">UGC video language</label>
+              <select value={videoLanguage} onChange={(e) => setVideoLanguage(e.target.value)} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100">
+                {contentLanguages.map((language) => <option key={language} value={language}>{language}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
         {/* Layout Selectors */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           {/* Aspect Ratio */}
@@ -666,6 +781,12 @@ export const CreativeStudioPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {selectedType === 'promotional_video' && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200">
+            UGC video generation uses the external Higgsfield API and may incur separate provider charges. The product photo is used as a video reference when its format is supported; exact logo overlays and printed address text are not guaranteed by the video model.
+          </div>
+        )}
 
         {/* Action Trigger Banner */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-neutral-800">
@@ -803,6 +924,24 @@ export const CreativeStudioPage: React.FC = () => {
                   <span className="font-bold text-amber-400">{activeOutput.content.callToAction}</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Actual Higgsfield UGC video result */}
+          {activeOutput.type === 'promotional_video' && (
+            <div className="space-y-3">
+              <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-white">Higgsfield UGC video</p>
+                  <p className="text-[11px] text-neutral-400 mt-1">Status: {videoStatus || 'not submitted'}</p>
+                </div>
+                {videoUrl && <a href={videoUrl} target="_blank" rel="noreferrer" className="text-xs text-amber-300 underline">Open video</a>}
+              </div>
+              {videoUrl ? (
+                <video controls playsInline src={videoUrl} className="w-full max-w-2xl rounded-xl border border-neutral-800 bg-black" />
+              ) : ['queued', 'processing', 'in_progress', 'submitting'].includes(videoStatus.toLowerCase()) ? (
+                <p className="text-xs text-neutral-400">The provider is rendering your video. This panel updates automatically.</p>
+              ) : null}
             </div>
           )}
 
