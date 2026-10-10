@@ -43,11 +43,19 @@ The Supabase registration endpoint sends a best-effort welcome email through Res
 
 Never use a `VITE_*` prefix for the API key. Verify your sending domain and its DNS records in Resend before sending to customers. Resend currently has no verified domains in the connected account, so production delivery will not work until a domain you control is added and verified. If email settings are absent or Resend rejects a message, registration still succeeds and the API reports `welcomeEmailSent: false`; provider errors are logged server-side without exposing credentials.
 
-### 6. Configure Higgsfield UGC video generation
+### 6. Configure Open-Higgsfield-compatible image/video generation
 
-The Creative Studio now submits real video jobs to the Higgsfield API; this is not the same as embedding the OpenHiggsfield open-source studio. Add `HIGGSFIELD_API_KEY` as a server-only environment variable in Vercel for Preview and Production. Use the complete API credential copied from the Higgsfield API console, and never prefix it with `VITE_`. See the [official Seedance 2.5 API reference](https://open.higgsfield.ai/models/bytedance/seedance-2.5/text-to-video/api-reference). Provider API usage is billed separately from BizMate credits. The app polls job status and shows the resulting MP4 URL when the provider completes the render.
+BizMate AI now calls the MuAPI endpoints used by the [Open-Higgsfield-AI open-source project](https://github.com/Autom8AI/Open-Higgsfield-AI) for poster images and UGC video jobs. The project is a Next.js studio/UI and model catalogue; its README says inference is performed by MuAPI and requires a MuAPI API key. Open source does **not** mean the generation compute/API is unlimited or free.
 
-For UGC video, use a PNG/JPEG/WebP product photo and, if available, a PNG/JPEG/WebP logo. The backend uploads supported reference images through Higgsfield's signed upload flow. SVG/sample images fall back to text-to-video. Video models may not preserve logos or contact details exactly; do not rely on generated text as a legally precise logo/address overlay.
+Add `MUAPI_API_KEY` as a **server-only** environment variable in Vercel Preview and Production. Do not use a `VITE_*` prefix. Create the key in the MuAPI account and check its free quota/pricing before allowing customer generation. No MuAPI key is embedded in the repository.
+
+- Poster, Instagram creative, and YouTube thumbnail generation submits a `flux-dev-image` job.
+- UGC video generation submits a Seedance 2.0 text-to-video job, or image-to-video when a supported product/logo reference is uploaded.
+- The API uses `POST /api/v1/{model-endpoint}` and polls `GET /api/v1/predictions/{request_id}/result`, matching the upstream project pattern.
+- Output images/videos are shown in the Creative Studio when the provider reports a completed job.
+- Uploaded PNG/JPEG/WebP references are forwarded through MuAPI's upload endpoint. Generated model text may not preserve logos, phone numbers, or addresses exactly; keep the existing SVG poster as a precise, editable brand-layout option.
+
+Reference: [Open-Higgsfield-AI README and API details](https://github.com/Autom8AI/Open-Higgsfield-AI) and [MuAPI endpoint example](https://github.com/Anil-matcha/Seedance-2.0-API).
 
 ## Recommended export formats
 
