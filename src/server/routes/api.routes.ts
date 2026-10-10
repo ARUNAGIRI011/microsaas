@@ -509,9 +509,9 @@ apiRouter.post('/integrations/gemini/test', async (_req: Request, res: Response)
   res.json(result);
 });
 
-apiRouter.post('/integrations/supabase/test', (_req: Request, res: Response) => {
-  const result = IntegrationsService.testDatabase();
-  res.json(result);
+apiRouter.post('/integrations/supabase/test', async (_req: Request, res: Response) => {
+  const result = await IntegrationsService.testDatabase();
+  res.status(result.success ? 200 : 503).json(result);
 });
 
 apiRouter.post('/integrations/email/send', async (req: Request, res: Response) => {
