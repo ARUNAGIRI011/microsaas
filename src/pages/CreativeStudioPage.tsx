@@ -57,6 +57,9 @@ export const CreativeStudioPage: React.FC = () => {
   const [videoJob, setVideoJob] = useState<{ requestId: string; requestToken: string } | null>(null);
   const [videoStatus, setVideoStatus] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [posterJob, setPosterJob] = useState<{ requestId: string; requestToken: string } | null>(null);
+  const [posterStatus, setPosterStatus] = useState('');
+  const [posterUrl, setPosterUrl] = useState('');
 
   const contentLanguages = [
     'English', 'Tamil', 'Hindi', 'Telugu', 'Malayalam', 'Kannada', 'Bengali',
@@ -112,6 +115,35 @@ export const CreativeStudioPage: React.FC = () => {
     }, 5000);
     return () => window.clearInterval(timer);
   }, [videoJob, videoStatus, user?.id, addToast]);
+
+  useEffect(() => {
+    if (!posterJob || ['completed', 'failed', 'error', 'canceled', 'cancelled'].includes(posterStatus.toLowerCase())) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const res = await fetch('/api/v1/videos/higgsfield/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
+          body: JSON.stringify(posterJob)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setPosterStatus('failed');
+          addToast(data.error || 'Could not check poster generation status.', 'error');
+          return;
+        }
+        setPosterStatus(String(data.status || 'processing'));
+        if (data.outputUrl) setPosterUrl(data.outputUrl);
+        if (String(data.status).toLowerCase() === 'completed' && data.outputUrl) {
+          addToast('AI poster image is ready.', 'success');
+        } else if (['failed', 'error', 'canceled', 'cancelled'].includes(String(data.status).toLowerCase())) {
+          addToast(data.error || 'Poster generation failed.', 'error');
+        }
+      } catch {
+        // Continue polling through temporary network errors.
+      }
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [posterJob, posterStatus, user?.id, addToast]);
 
   // Check if initial prompt was passed from landing page
   useEffect(() => {
@@ -222,6 +254,32 @@ export const CreativeStudioPage: React.FC = () => {
     ].filter(Boolean).join('\n');
 
     try {
+      // Generate a real AI image for poster, social creative, and thumbnail formats.
+      if (['promotional_poster', 'instagram_creative', 'youtube_thumbnail'].includes(selectedType)) {
+        setPosterJob(null);
+        setPosterUrl('');
+        setPosterStatus('submitting');
+        const posterRes = await fetch('/api/v1/creative/open-higgsfield/poster', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
+          body: JSON.stringify({
+            prompt: businessContext,
+            logoDataUrl: logoUrl || undefined,
+            productImageDataUrl: productImageUrl || undefined,
+            aspectRatio: selectedType === 'youtube_thumbnail' ? '16:9' : aspectRatio === '4:5' ? '4:5' : '1:1'
+          })
+        });
+        const posterData = await posterRes.json();
+        if (!posterRes.ok || !posterData.success) {
+          setPosterStatus('failed');
+          addToast(posterData.error || 'Open-Higgsfield image generation is not configured.', 'error');
+          return;
+        }
+        setPosterJob({ requestId: posterData.requestId, requestToken: posterData.requestToken });
+        setPosterStatus(posterData.status || 'queued');
+        addToast('AI poster image queued. It will appear when the provider finishes.', 'info');
+      }
+
       // Submit the paid video render first. If the provider is not configured, do not consume app credits.
       if (selectedType === 'promotional_video') {
         setVideoJob(null);
@@ -938,6 +996,24 @@ export const CreativeStudioPage: React.FC = () => {
                   <span className="font-bold text-amber-400">{activeOutput.content.callToAction}</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Open-Higgsfield AI-generated poster image */}
+          {['promotional_poster', 'instagram_creative', 'youtube_thumbnail'].includes(activeOutput.type) && (
+            <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-white">Open-Higgsfield AI image</p>
+                  <p className="mt-1 text-[11px] text-neutral-400">Status: {posterStatus || 'not submitted'}</p>
+                </div>
+                {posterUrl && <a href={posterUrl} target="_blank" rel="noreferrer" className="text-xs text-amber-300 underline">Open image</a>}
+              </div>
+              {posterUrl ? (
+                <img src={posterUrl} alt="AI-generated business poster" className="max-h-[720px] w-full rounded-lg object-contain" />
+              ) : ['queued', 'processing', 'submitting'].includes(posterStatus.toLowerCase()) ? (
+                <p className="text-xs text-neutral-400">Rendering your AI image. This panel updates automatically.</p>
+              ) : null}
             </div>
           )}
 
