@@ -36,7 +36,7 @@ export function escapeXml(unsafe: string = ''): string {
 export function getCanvasDimensions(aspectRatio: string = '1:1'): { width: number; height: number } {
   switch (aspectRatio) {
     case '16:9':
-      return { width: 1920, height: 1080 };
+      return { width: 1280, height: 720 }; // Standard YouTube thumbnail / landscape social canvas
     case '9:16':
       return { width: 1080, height: 1920 };
     case '4:5':
