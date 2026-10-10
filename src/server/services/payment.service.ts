@@ -26,17 +26,37 @@ export class PaymentService {
   /**
    * Create an order for a plan upgrade
    */
-  public static createOrder(userId: string, planId: PlanId): { orderId: string; amount: number; currency: string; keyId: string } {
+  public static async createOrder(userId: string, planId: PlanId): Promise<{ orderId: string; amount: number; currency: string; keyId: string }> {
     const plan = PLANS[planId];
     if (!plan) throw new Error('Invalid plan selected');
+    if (!this.isConfigured()) {
+      throw new Error('Online payments are not configured yet. Please contact the site administrator.');
+    }
 
-    const amountInPaise = plan.price * 100; // Razorpay uses smallest currency unit (paise)
-    const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const amountInPaise = Math.round(plan.price * 100);
+    const receipt = `bm-${Date.now()}-${userId.replace(/[^a-zA-Z0-9]/g, '').slice(-10)}`.slice(0, 40);
+    const response = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64'),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt,
+        notes: { userId, planId }
+      })
+    });
+    const order = await response.json() as { id?: string; amount?: number; currency?: string; error?: { description?: string } };
+    if (!response.ok || !order.id) {
+      throw new Error(order.error?.description || 'Razorpay could not create an order. Please retry.');
+    }
 
     const payment: PaymentRecord = {
-      id: `pay-${Date.now()}`,
+      id: `pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       userId,
-      orderId,
+      orderId: order.id,
       amount: plan.price,
       currency: 'INR',
       planId,
@@ -44,23 +64,15 @@ export class PaymentService {
       verified: false,
       createdAt: new Date().toISOString()
     };
-
     db.payments.set(payment.id, payment);
-
     db.logAudit({
       userId,
       action: 'PAYMENT_ORDER_CREATED',
-      resource: `orders/${orderId}`,
-      details: `Created order for plan ${planId} (₹${plan.price})`,
+      resource: `orders/${order.id}`,
+      details: `Created Razorpay order for plan ${planId} (₹${plan.price})`,
       status: 'SUCCESS'
     });
-
-    return {
-      orderId,
-      amount: amountInPaise,
-      currency: 'INR',
-      keyId: razorpayKeyId || 'rzp_test_bizmate_demo'
-    };
+    return { orderId: order.id, amount: order.amount ?? amountInPaise, currency: order.currency ?? 'INR', keyId: razorpayKeyId };
   }
 
   /**
@@ -88,6 +100,9 @@ export class PaymentService {
       });
       return { verified: false, error: 'Authorization error: Order owner mismatch' };
     }
+
+    // A duplicate checkout callback must never allocate credits twice.
+    if (payment.verified) return { verified: true, planId: payment.planId };
 
     let isValidSignature = false;
 
