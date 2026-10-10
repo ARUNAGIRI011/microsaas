@@ -235,6 +235,11 @@ apiRouter.post('/videos/higgsfield/generate', async (req: Request, res: Response
   if (typeof prompt !== 'string' || !prompt.trim()) {
     return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'A video prompt is required.' });
   }
+  const productImage = typeof productImageDataUrl === 'string' ? productImageDataUrl : '';
+  const logoImage = typeof req.body.logoDataUrl === 'string' ? req.body.logoDataUrl : '';
+  if (productImage.length > 1.8 * 1024 * 1024 || logoImage.length > 1.8 * 1024 * 1024) {
+    return res.status(413).json({ success: false, errorCode: 'UPLOAD_TOO_LARGE', error: 'Each video reference image must be 1.2 MB or smaller.' });
+  }
   if (!HiggsfieldService.isConfigured()) {
     return res.status(503).json({ success: false, errorCode: 'HIGGSFIELD_NOT_CONFIGURED', error: 'UGC video generation is not configured. Add HIGGSFIELD_API_KEY to the server environment.' });
   }
