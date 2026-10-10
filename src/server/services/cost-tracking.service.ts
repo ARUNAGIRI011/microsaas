@@ -50,6 +50,13 @@ function finiteNonNegative(value: unknown): number {
 }
 
 function configuredUsdCost(provider: string, operation: string, inputTokens: number, outputTokens: number): { costUsd: number | null; pricingSource: string | null } {
+  if (provider === 'gemini-image') {
+    const raw = process.env.GEMINI_IMAGE_COST_USD;
+    if (raw !== undefined && raw.trim() !== '') {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 0) return { costUsd: n, pricingSource: 'GEMINI_IMAGE_COST_USD' };
+    }
+  }
   if (provider === 'gemini') {
     const inputRate = process.env.GEMINI_INPUT_USD_PER_MILLION_TOKENS;
     const outputRate = process.env.GEMINI_OUTPUT_USD_PER_MILLION_TOKENS;
