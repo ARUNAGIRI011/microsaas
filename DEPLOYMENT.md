@@ -34,6 +34,16 @@ Create a GitHub environment named `production`. Under its protection rules, enab
 
 Set production environment variables separately in Vercel. Keep server secrets out of the browser bundle.
 
+### 5. Configure Resend transactional email
+
+The Supabase registration endpoint sends a best-effort welcome email through Resend. Add these server-side variables in **Vercel → Project Settings → Environment Variables** for both Preview and Production:
+
+- `RESEND_API_KEY`: a Resend API key with sending permission only.
+- `EMAIL_FROM`: a sender address on a domain verified in Resend (for example, `BizMate AI <hello@your-verified-domain.com>`).
+
+Never use a `VITE_*` prefix for the API key. Verify your sending domain and its DNS records in Resend before sending to customers. Resend currently has no verified domains in the connected account, so production delivery will not work until a domain you control is added and verified. If email settings are absent or Resend rejects a message, registration still succeeds and the API reports `welcomeEmailSent: false`; provider errors are logged server-side without exposing credentials.
+
+
 ### 5. Run the pipeline
 
 Push a reviewed commit to `main`, or manually run the workflow on `main`:
