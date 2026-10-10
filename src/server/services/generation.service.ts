@@ -143,15 +143,19 @@ export class GenerationService {
         createdAt: new Date().toISOString()
       };
 
+      const isVisual = ['promotional_poster', 'instagram_creative', 'facebook_creative', 'youtube_thumbnail', 'product_image'].includes(params.type);
+      const ext = isVisual ? '.svg' : params.type === 'marketing_copy' ? '.txt' : '.json';
+      const mime = isVisual ? 'image/svg+xml' : params.type === 'marketing_copy' ? 'text/plain' : 'application/json';
+
       const asset: Asset = {
         id: assetId,
         userId,
         jobId,
-        name: `${params.type}_${Date.now()}.png`,
+        name: `${params.type}_${Date.now()}${ext}`,
         type: params.type,
-        mimeType: params.type === 'marketing_copy' ? 'text/plain' : 'image/png',
+        mimeType: mime,
         sizeBytes: 256000,
-        storagePath: `users/${userId}/${params.type}/${assetId}.png`,
+        storagePath: `users/${userId}/${params.type}/${assetId}${ext}`,
         downloadUrl: `/api/v1/assets/${assetId}/download`,
         previewUrl: `/api/v1/assets/${assetId}/preview`,
         createdAt: new Date().toISOString()

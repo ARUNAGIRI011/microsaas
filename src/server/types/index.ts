@@ -4,6 +4,8 @@
 
 export type UserRole = 'USER' | 'ADMIN' | 'SUPER_ADMIN';
 
+export type AspectRatio = '1:1' | '16:9' | '9:16' | '4:5' | '1.91:1';
+
 export type PlanId = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE';
 
 export interface Plan {
@@ -242,7 +244,7 @@ export interface IntegrationStatus {
   name: string;
   category: 'DATABASE' | 'AI_PROVIDER' | 'PAYMENT' | 'EMAIL' | 'WHATSAPP' | 'PUBLISHING' | 'REPORTING';
   configured: boolean;
-  statusText: 'CONFIGURED & ACTIVE' | 'NOT CONFIGURED / NOT TESTED' | 'OPERATIONAL_FALLBACK';
+  statusText: 'CONFIGURED & ACTIVE' | 'NOT CONFIGURED / NOT TESTED' | 'OPERATIONAL_FALLBACK' | 'NOT CONFIGURED / SIMULATED' | 'NOT CONFIGURED';
   details: string;
   testedAt?: string;
 }

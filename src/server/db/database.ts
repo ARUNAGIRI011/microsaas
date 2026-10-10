@@ -3,6 +3,7 @@
  * Strictly models PostgreSQL schemas, constraints, foreign keys, and RLS policies.
  */
 
+import crypto from 'crypto';
 import {
   UserProfile,
   Organization,
@@ -120,6 +121,48 @@ class Database {
   public assets: Map<string, Asset> = new Map();
   public payments: Map<string, PaymentRecord> = new Map();
   public auditLogs: AuditLog[] = [];
+
+  constructor() {
+    this.seedDefaultData();
+  }
+
+  private seedDefaultData() {
+    const demoUser: UserProfile = {
+      id: 'usr-demo-retailer',
+      email: 'demo@bizmate.ai',
+      name: 'Arunagiri (Store Owner)',
+      role: 'USER',
+      organizationId: 'org-demo-retailer',
+      emailVerified: true,
+      businessName: 'BizMate Retail Boutique',
+      industry: 'Retail & E-commerce',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    this.users.set(demoUser.id, demoUser);
+    this.subscriptions.set(demoUser.id, {
+      id: 'sub-demo-retailer',
+      userId: demoUser.id,
+      organizationId: 'org-demo-retailer',
+      planId: 'FREE',
+      status: 'ACTIVE',
+      currentPeriodStart: new Date().toISOString(),
+      currentPeriodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
+      cancelAtPeriodEnd: false
+    });
+    this.usageBalances.set(demoUser.id, {
+      userId: demoUser.id,
+      totalCredits: 50,
+      usedCredits: 0,
+      reservedCredits: 0,
+      remainingCredits: 50,
+      updatedAt: new Date().toISOString()
+    });
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = `${salt}:${crypto.scryptSync('DemoPassword2026!', salt, 64).toString('hex')}`;
+    this.passwords.set(demoUser.email.toLowerCase(), hash);
+  }
 
   // Row Level Security (RLS) enforcement helper
   public enforceRLS(requesterId: string, resourceOwnerId: string, isAdminAllowed = true): boolean {

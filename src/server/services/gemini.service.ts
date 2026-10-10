@@ -7,16 +7,17 @@ import { GoogleGenAI } from '@google/genai';
 import { GenerationType, GenerationOutput, ConceptStyle } from '../types/index.ts';
 import { CostTrackingService } from './cost-tracking.service.ts';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-
-const ai = new GoogleGenAI({
-  apiKey,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build'
+function getGenAIClient(): GoogleGenAI {
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build'
+      }
     }
-  }
-});
+  });
+}
 
 export interface CreativePlan {
   businessObjective: string;
@@ -31,6 +32,7 @@ export interface CreativePlan {
 
 export class GeminiService {
   public static isConfigured(): boolean {
+    const apiKey = (process.env.GEMINI_API_KEY || '').trim();
     return Boolean(apiKey && apiKey.length > 5);
   }
 
@@ -83,7 +85,7 @@ Respond strictly with valid JSON conforming to this structure:
   "campaignName": "Catchy Campaign Title"
 }`;
 
-      const response = await ai.models.generateContent({
+      const response = await getGenAIClient().models.generateContent({
         model: 'gemini-3.8-flash',
         contents: prompt,
         config: {
@@ -240,7 +242,7 @@ Return JSON:
 }`;
       }
 
-      const response = await ai.models.generateContent({
+      const response = await getGenAIClient().models.generateContent({
         model: 'gemini-3.8-flash',
         contents: promptInstruction,
         config: {
@@ -321,7 +323,7 @@ Return JSON:
         parts: [{ text: message }]
       });
 
-      const response = await ai.models.generateContent({
+      const response = await getGenAIClient().models.generateContent({
         model: 'gemini-3.8-flash',
         contents: contents as any,
         config: {

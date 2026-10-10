@@ -83,16 +83,16 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
   const getAspectClass = () => {
     switch (aspectRatio) {
       case '16:9':
-        return 'aspect-video';
+        return 'aspect-video max-w-3xl max-h-[540px]';
       case '9:16':
-        return 'aspect-[9/16] max-w-[340px]';
+        return 'aspect-[9/16] max-w-[340px] max-h-[600px]';
       case '4:5':
-        return 'aspect-[4/5] max-w-[420px]';
+        return 'aspect-[4/5] max-w-[420px] max-h-[540px]';
       case '1.91:1':
-        return 'aspect-[1.91/1]';
+        return 'aspect-[1.91/1] max-w-3xl max-h-[440px]';
       case '1:1':
       default:
-        return 'aspect-square max-w-[480px]';
+        return 'aspect-square max-w-[480px] max-h-[480px]';
     }
   };
 
@@ -298,13 +298,13 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
         </div>
       </div>
 
-      {/* Visual Canvas Container */}
-      <div className="relative group w-full flex justify-center">
+      {/* Visual Canvas Container (Strictly Contained Inside Box) */}
+      <div className="relative group w-full flex justify-center py-1">
         <div
-          className={`w-full ${getAspectClass()} rounded-2xl overflow-hidden shadow-2xl border border-neutral-800 bg-neutral-950 flex items-center justify-center`}
+          className={`w-full ${getAspectClass()} rounded-2xl overflow-hidden shadow-2xl border border-neutral-800 bg-neutral-950 flex items-center justify-center p-0`}
         >
           <div
-            className="w-full h-full flex items-center justify-center select-none"
+            className="w-full h-full max-w-full max-h-full flex items-center justify-center select-none [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:object-contain [&>svg]:block"
             dangerouslySetInnerHTML={{ __html: svgContent }}
           />
         </div>

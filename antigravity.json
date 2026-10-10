@@ -1,0 +1,22 @@
+{
+  "name": "bizmate-ai",
+  "version": "1.0.0",
+  "type": "web-application",
+  "framework": "vite-react-express",
+  "port": 3000,
+  "commands": {
+    "dev": "npm run dev",
+    "build": "npm run build",
+    "test": "npm test",
+    "lint": "npm run lint"
+  },
+  "agent": {
+    "model": "antigravity-preview-09-2026",
+    "environment": "remote",
+    "capabilities": ["code_execution", "file_management", "web_access"]
+  },
+  "env": {
+    "template": ".env.example",
+    "required": ["GEMINI_API_KEY"]
+  }
+}

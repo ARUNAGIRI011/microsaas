@@ -86,6 +86,48 @@ export const LoginPage: React.FC = () => {
             {loading ? 'Authenticating...' : 'Sign In'}
             {!loading && <ArrowRight className="w-4 h-4" />}
           </button>
+
+          <div className="relative flex py-1 items-center">
+            <div className="grow border-t border-neutral-800"></div>
+            <span className="shrink mx-3 text-[10px] text-neutral-500 uppercase tracking-wider">or quick access</span>
+            <div className="grow border-t border-neutral-800"></div>
+          </div>
+
+          <button
+            type="button"
+            disabled={loading}
+            onClick={async () => {
+              setLoading(true);
+              try {
+                const res = await fetch('/api/v1/auth/login', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: 'demo@bizmate.ai', password: 'DemoPassword2026!' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                  setAuthenticatedUser(data.user);
+                  addToast(`Welcome back, ${data.user.name}!`, 'success');
+                  await refreshUserData();
+                  const pendingPlan = sessionStorage.getItem('bizmate_pending_plan');
+                  if (pendingPlan) {
+                    navigate('/pricing');
+                  } else {
+                    navigate('/dashboard');
+                  }
+                } else {
+                  addToast(data.error || 'Demo login failed', 'error');
+                }
+              } catch {
+                addToast('Network error during demo login', 'error');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            className="w-full py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold text-xs border border-neutral-700 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <span>Sign in as Demo Store Owner</span>
+          </button>
         </form>
 
         <div className="text-center text-xs text-neutral-400 pt-2">

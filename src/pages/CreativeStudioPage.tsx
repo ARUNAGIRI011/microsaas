@@ -58,6 +58,7 @@ export const CreativeStudioPage: React.FC = () => {
   const [posterJob, setPosterJob] = useState<{ requestId: string; requestToken: string } | null>(null);
   const [posterStatus, setPosterStatus] = useState('');
   const [posterUrl, setPosterUrl] = useState('');
+  const [creativeViewMode, setCreativeViewMode] = useState<'designer_poster' | 'raw_image'>('designer_poster');
 
   // Constitution's 22 scheduled Indian languages plus five widely used international languages.
   // Actual script quality depends on the selected generation provider/model.
@@ -902,77 +903,66 @@ export const CreativeStudioPage: React.FC = () => {
             activeOutput.type === 'youtube_thumbnail' ||
             activeOutput.type === 'product_image') &&
             activeOutput.content.layoutConfig && (
-              <div className="flex flex-col items-center">
-                <PosterCanvas
-                  layout={{
-                    ...activeOutput.content.layoutConfig,
-                    conceptStyle,
-                    logoUrl: logoUrl || activeOutput.content.layoutConfig.logoUrl,
-                    productImageUrl: productImageUrl || activeOutput.content.layoutConfig.productImageUrl
-                  }}
-                  brandName={businessName || ''}
-                  aspectRatio={aspectRatio}
-                  logoUrl={logoUrl || activeOutput.content.layoutConfig.logoUrl}
-                  productImageUrl={productImageUrl || activeOutput.content.layoutConfig.productImageUrl}
-                  onConceptChange={(newConcept) => setConceptStyle(newConcept)}
-                  onCopyText={() => addToast('Poster text copied to clipboard', 'info')}
-                />
+              <div className="flex flex-col items-center w-full space-y-4">
+                {/* View Switcher when an AI photographic image is present */}
+                {posterUrl && (
+                  <div className="flex items-center p-1 bg-neutral-950 border border-neutral-800 rounded-xl text-xs font-bold shadow-md">
+                    <button
+                      type="button"
+                      onClick={() => setCreativeViewMode('designer_poster')}
+                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition cursor-pointer ${
+                        creativeViewMode === 'designer_poster'
+                          ? 'bg-amber-500 text-neutral-950 shadow'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Live Designer Poster Creative</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCreativeViewMode('raw_image')}
+                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition cursor-pointer ${
+                        creativeViewMode === 'raw_image'
+                          ? 'bg-amber-500 text-neutral-950 shadow'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <Image className="w-3.5 h-3.5" />
+                      <span>Raw AI Generated Visual</span>
+                    </button>
+                  </div>
+                )}
+
+                {creativeViewMode === 'designer_poster' ? (
+                  <PosterCanvas
+                    layout={{
+                      ...activeOutput.content.layoutConfig,
+                      conceptStyle,
+                      logoUrl: logoUrl || activeOutput.content.layoutConfig.logoUrl,
+                      productImageUrl: (posterUrl && !posterUrl.startsWith('data:image/svg+xml')) ? posterUrl : (productImageUrl || activeOutput.content.layoutConfig.productImageUrl)
+                    }}
+                    brandName={businessName || ''}
+                    aspectRatio={aspectRatio}
+                    logoUrl={logoUrl || activeOutput.content.layoutConfig.logoUrl}
+                    productImageUrl={(posterUrl && !posterUrl.startsWith('data:image/svg+xml')) ? posterUrl : (productImageUrl || activeOutput.content.layoutConfig.productImageUrl)}
+                    onConceptChange={(newConcept) => setConceptStyle(newConcept)}
+                    onCopyText={() => addToast('Poster text copied to clipboard', 'info')}
+                  />
+                ) : (
+                  /* Strictly contained raw AI visual inside the exact same preview frame */
+                  <div className="w-full flex justify-center py-1">
+                    <div className="w-full max-w-2xl max-h-[580px] rounded-2xl overflow-hidden shadow-2xl border border-neutral-800 bg-neutral-950 flex items-center justify-center p-2">
+                      <img
+                        src={posterUrl}
+                        alt="AI-generated business visual"
+                        className="w-full h-full max-w-full max-h-[540px] object-contain rounded-xl block select-none"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-
-          {/* Marketing Copy View */}
-          {(activeOutput.type === 'marketing_copy' ||
-            activeOutput.type === 'whatsapp_creative' ||
-            activeOutput.type === 'email_content') && (
-            <div className="space-y-4 text-xs">
-              {activeOutput.content.headlines && activeOutput.content.headlines.length > 0 && (
-                <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 space-y-2">
-                  <span className="font-bold text-amber-400 text-[11px] uppercase tracking-wider">
-                    High CTR Headlines
-                  </span>
-                  <ul className="space-y-1.5 list-disc list-inside text-neutral-200">
-                    {activeOutput.content.headlines.map((h, i) => (
-                      <li key={i} className="font-semibold">{h}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 space-y-2">
-                <span className="font-bold text-amber-400 text-[11px] uppercase tracking-wider">
-                  Campaign Body Copy
-                </span>
-                <p className="whitespace-pre-line text-neutral-200 leading-relaxed font-sans">
-                  {activeOutput.content.bodyCopy || activeOutput.content.text}
-                </p>
-              </div>
-
-              {activeOutput.content.callToAction && (
-                <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-between">
-                  <span className="text-neutral-400">Call to Action:</span>
-                  <span className="font-bold text-amber-400">{activeOutput.content.callToAction}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Open-Higgsfield AI-generated poster image */}
-          {['promotional_poster', 'instagram_creative', 'youtube_thumbnail'].includes(activeOutput.type) && (
-            <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold text-white">AI poster image generation</p>
-                  <p className="mt-1 text-[11px] text-neutral-400">Status: {posterStatus || 'not submitted'}</p>
-                </div>
-                {posterUrl && <a href={posterUrl} target="_blank" rel="noreferrer" className="text-xs text-amber-300 underline">Open image</a>}
-              </div>
-              {posterUrl ? (
-                <img src={posterUrl} alt="AI-generated business poster" className="max-h-[720px] w-full rounded-lg object-contain" />
-              ) : ['queued', 'processing', 'submitting'].includes(posterStatus.toLowerCase()) ? (
-                <p className="text-xs text-neutral-400">Rendering your AI image. This panel updates automatically.</p>
-              ) : null}
-            </div>
-          )}
 
           {/* Actual Open-Higgsfield UGC video result */}
           {activeOutput.type === 'promotional_video' && (

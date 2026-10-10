@@ -5,12 +5,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext.tsx';
-import { CreditCard, Check, Zap, Shield, ArrowRight, FileText } from 'lucide-react';
+import { CreditCard, Zap, ArrowRight, FileText, Sparkles, Check } from 'lucide-react';
 import { PaymentRecord, PlanId } from '../server/types/index.ts';
 
 export const SubscriptionPage: React.FC = () => {
   const { user, subscription, balance, navigate, addToast, refreshUserData } = useApp();
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -24,6 +26,99 @@ export const SubscriptionPage: React.FC = () => {
         .catch((err) => console.error('Failed to load payment history:', err));
     }
   }, [user]);
+
+  const loadRazorpay = () => new Promise<boolean>((resolve) => {
+    if ((window as any).Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(Boolean((window as any).Razorpay));
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
+  const handleUpgrade = async (planId: PlanId) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (processingPayment) return;
+
+    setUpgradingPlan(planId);
+    setProcessingPayment(true);
+    try {
+      const res = await fetch('/api/v1/payments/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+        body: JSON.stringify({ planId, billingInterval: 'month' })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.order?.orderId || !data.order?.keyId) {
+        throw new Error(data.error || 'Razorpay checkout is not configured. Please try again later.');
+      }
+
+      if (!(await loadRazorpay())) {
+        throw new Error('Could not load Razorpay checkout script. Check network connection.');
+      }
+
+      const checkout = new (window as any).Razorpay({
+        key: data.order.keyId,
+        amount: data.order.amount,
+        currency: data.order.currency || 'INR',
+        name: 'BizMate AI',
+        description: `${planId} Plan Subscription Upgrade`,
+        order_id: data.order.orderId,
+        prefill: { name: user.name || '', email: user.email || '' },
+        notes: { planId },
+        theme: { color: '#f59e0b' },
+        handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+          try {
+            const verifyRes = await fetch('/api/v1/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+              body: JSON.stringify({
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature
+              })
+            });
+            const verification = await verifyRes.json();
+            if (!verifyRes.ok || !verification.success || !verification.verified) {
+              throw new Error(verification.error || 'Payment signature verification failed.');
+            }
+            addToast(`Payment verified! Upgraded to ${planId} with full credits!`, 'success');
+            await refreshUserData();
+            // Refresh history
+            const histRes = await fetch('/api/v1/payments/history', { headers: { 'x-user-id': user.id } });
+            const histData = await histRes.json();
+            if (histData.success) setPayments(histData.payments);
+          } catch (error: any) {
+            addToast(error?.message || 'Verification failed. Support has been notified.', 'error');
+          } finally {
+            setProcessingPayment(false);
+            setUpgradingPlan(null);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setProcessingPayment(false);
+            setUpgradingPlan(null);
+            addToast('Payment cancelled or window closed.', 'info');
+          }
+        }
+      });
+      checkout.on('payment.failed', (response: any) => {
+        setProcessingPayment(false);
+        setUpgradingPlan(null);
+        addToast(response?.error?.description || 'Payment was not completed.', 'error');
+      });
+      checkout.open();
+    } catch (error: any) {
+      setProcessingPayment(false);
+      setUpgradingPlan(null);
+      addToast(error?.message || 'Unable to start Razorpay checkout.', 'error');
+    }
+  };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -40,9 +135,9 @@ export const SubscriptionPage: React.FC = () => {
 
         <button
           onClick={() => navigate('/pricing')}
-          className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-neutral-950 font-bold text-xs rounded-xl shadow transition hover:brightness-110"
+          className="flex items-center gap-1.5 px-4 py-2 bg-neutral-900 border border-neutral-800 text-neutral-200 hover:text-white font-bold text-xs rounded-xl shadow transition"
         >
-          <span>Upgrade or Switch Plan</span>
+          <span>Compare All Plans</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -89,6 +184,81 @@ export const SubscriptionPage: React.FC = () => {
               Razorpay (UPI / NetBanking / Cards)
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Instant Upgrade via Razorpay Quick Action Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-6 rounded-2xl bg-neutral-900 border border-amber-500/30 shadow-xl relative overflow-hidden flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">
+                Most Popular Retailer Plan
+              </span>
+              <span className="text-xl font-black text-white">₹2,499<span className="text-xs font-normal text-neutral-400">/mo</span></span>
+            </div>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+              Upgrade to PRO Plan
+            </h3>
+            <p className="text-xs text-neutral-400">
+              Get 2,000 credits/mo, priority Gemini AI speed, and remove all watermark branding.
+            </p>
+          </div>
+
+          <button
+            onClick={() => handleUpgrade('PRO')}
+            disabled={processingPayment}
+            className="mt-6 w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-neutral-950 font-extrabold text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {upgradingPlan === 'PRO' ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-neutral-950 border-t-transparent rounded-full animate-spin" />
+                <span>Opening Razorpay Gateway...</span>
+              </>
+            ) : (
+              <>
+                <Zap className="w-3.5 h-3.5" />
+                <span>Instant Upgrade via Razorpay (₹2,499)</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-neutral-900 border border-purple-500/30 shadow-xl relative overflow-hidden flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold">
+                Agency & Brand Scale
+              </span>
+              <span className="text-xl font-black text-white">₹6,999<span className="text-xs font-normal text-neutral-400">/mo</span></span>
+            </div>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Zap className="w-5 h-5 text-purple-400" />
+              Upgrade to ENTERPRISE Plan
+            </h3>
+            <p className="text-xs text-neutral-400">
+              Get 10,000 credits/mo, multi-user seats, unlimited exports, and dedicated support.
+            </p>
+          </div>
+
+          <button
+            onClick={() => handleUpgrade('ENTERPRISE')}
+            disabled={processingPayment}
+            className="mt-6 w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 text-white font-extrabold text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {upgradingPlan === 'ENTERPRISE' ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Opening Razorpay Gateway...</span>
+              </>
+            ) : (
+              <>
+                <Zap className="w-3.5 h-3.5" />
+                <span>Instant Upgrade via Razorpay (₹6,999)</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 

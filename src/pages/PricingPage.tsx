@@ -16,7 +16,9 @@ export const PricingPage: React.FC = () => {
 
   const handleSelectPlan = async (planId: PlanId) => {
     if (!user) {
-      navigate('/register');
+      sessionStorage.setItem('bizmate_pending_plan', planId);
+      addToast('Please sign in or create an account to activate this plan', 'info');
+      navigate('/login');
       return;
     }
     if (planId === 'FREE') {
@@ -61,7 +63,7 @@ export const PricingPage: React.FC = () => {
         order_id: data.order.orderId,
         prefill: { name: user.name || '', email: user.email || '' },
         notes: { planId },
-        theme: { color: '#a78bfa' },
+        theme: { color: '#f59e0b' },
         handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
           try {
             const verifyRes = await fetch('/api/v1/payments/verify', {
@@ -77,26 +79,32 @@ export const PricingPage: React.FC = () => {
             if (!verifyRes.ok || !verification.success || !verification.verified) {
               throw new Error(verification.error || 'Payment verification failed.');
             }
-            addToast(`Payment verified. Your ${planId} plan is now active.`, 'success');
+            addToast(`Payment verified! Your ${planId} plan is now active with refreshed credits.`, 'success');
             await refreshUserData();
             navigate('/dashboard');
           } catch (error: any) {
             addToast(error?.message || 'Payment verification failed. Contact support with your payment ID.', 'error');
           } finally {
             setProcessingPayment(false);
+            setUpgradingPlan(null);
           }
         },
         modal: {
-          ondismiss: () => setProcessingPayment(false)
+          ondismiss: () => {
+            setProcessingPayment(false);
+            setUpgradingPlan(null);
+          }
         }
       });
       checkout.on('payment.failed', (response: any) => {
         setProcessingPayment(false);
+        setUpgradingPlan(null);
         addToast(response?.error?.description || 'Payment was not completed. You have not been charged for an unsuccessful payment.', 'error');
       });
       checkout.open();
     } catch (error: any) {
       setProcessingPayment(false);
+      setUpgradingPlan(null);
       addToast(error?.message || 'Unable to start Razorpay checkout.', 'error');
     }
   };

@@ -7,18 +7,24 @@ import crypto from 'crypto';
 import { db, PLANS } from '../db/database.ts';
 import { PaymentRecord, PlanId } from '../types/index.ts';
 
-const razorpayKeyId = process.env.RAZORPAY_KEY_ID || '';
-const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || '';
+function getRazorpayKeyId(): string {
+  return (process.env.RAZORPAY_KEY_ID || '').trim();
+}
+
+function getRazorpayKeySecret(): string {
+  return (process.env.RAZORPAY_KEY_SECRET || '').trim();
+}
 
 export class PaymentService {
   public static isConfigured(): boolean {
-    return Boolean(razorpayKeyId && razorpayKeySecret);
+    return Boolean(getRazorpayKeyId() && getRazorpayKeySecret());
   }
 
   public static getStatus(): { configured: boolean; keyId: string; mode: string } {
+    const keyId = getRazorpayKeyId();
     return {
       configured: this.isConfigured(),
-      keyId: razorpayKeyId ? `${razorpayKeyId.slice(0, 8)}...` : 'NOT_CONFIGURED',
+      keyId: keyId ? `${keyId.slice(0, 8)}...` : 'NOT_CONFIGURED',
       mode: this.isConfigured() ? 'LIVE_OR_TEST_API' : 'NOT_CONFIGURED'
     };
   }
@@ -30,9 +36,11 @@ export class PaymentService {
     const plan = PLANS[planId];
     if (!plan) throw new Error('Invalid plan selected');
     if (!this.isConfigured()) {
-      throw new Error('Online payments are not configured yet. Please contact the site administrator.');
+      throw new Error('Online payments are not configured yet. Please configure RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
     }
 
+    const keyId = getRazorpayKeyId();
+    const keySecret = getRazorpayKeySecret();
     const monthlyPrice = billingInterval === 'year' && planId !== 'FREE'
       ? (planId === 'STARTER' ? 399 : planId === 'PRO' ? 1199 : 7999)
       : plan.price;
@@ -42,7 +50,7 @@ export class PaymentService {
     const response = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST',
       headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64'),
+        'Authorization': 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64'),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -77,7 +85,7 @@ export class PaymentService {
       details: `Created Razorpay order for plan ${planId} (${billingInterval}, ₹${billedPrice})`,
       status: 'SUCCESS'
     });
-    return { orderId: order.id, amount: order.amount ?? amountInPaise, currency: order.currency ?? 'INR', keyId: razorpayKeyId };
+    return { orderId: order.id, amount: order.amount ?? amountInPaise, currency: order.currency ?? 'INR', keyId };
   }
 
   /**
@@ -113,9 +121,10 @@ export class PaymentService {
       return { verified: false, error: 'Razorpay credentials are not configured. Payment cannot be verified.' };
     }
 
+    const keySecret = getRazorpayKeySecret();
     const body = `${params.orderId}|${params.paymentId}`;
     const expectedSignature = crypto
-      .createHmac('sha256', razorpayKeySecret)
+      .createHmac('sha256', keySecret)
       .update(body)
       .digest('hex');
     const isValidSignature = expectedSignature === params.signature;

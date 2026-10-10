@@ -27,7 +27,7 @@ import {
 import { IntegrationStatus } from '../server/types/index.ts';
 
 export const IntegrationsPage: React.FC = () => {
-  const { user, addToast, refreshUserData } = useApp();
+  const { user, addToast, refreshUserData, navigate } = useApp();
   const [statuses, setStatuses] = useState<IntegrationStatus[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -220,6 +220,11 @@ export const IntegrationsPage: React.FC = () => {
   };
 
   const handleTestRazorpay = async () => {
+    if (!user) {
+      addToast('Please sign in to test the Razorpay gateway.', 'info');
+      navigate('/login');
+      return;
+    }
     setTestingRazorpay(true);
     setRazorpayResult(null);
     try {
@@ -231,25 +236,75 @@ export const IntegrationsPage: React.FC = () => {
       const orderData = await orderRes.json();
       if (!orderData.success) throw new Error(orderData.error);
 
-      // Verify payment with simulated HMAC signature
-      const verifyRes = await fetch('/api/v1/payments/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
-        body: JSON.stringify({
-          orderId: orderData.order.orderId,
-          paymentId: `pay_test_${Date.now()}`,
-          signature: 'simulated_test_hmac_valid'
-        })
+      const loadRazorpay = () => new Promise<boolean>((resolve) => {
+        if ((window as any).Razorpay) return resolve(true);
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => resolve(Boolean((window as any).Razorpay));
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
       });
-      const verifyData = await verifyRes.json();
-      setRazorpayResult({ order: orderData.order, verification: verifyData });
-      if (verifyData.success) {
-        addToast('Razorpay payment verified & 2,000 PRO credits credited!', 'success');
-        await refreshUserData();
+
+      await loadRazorpay();
+
+      if ((window as any).Razorpay && orderData.order?.keyId) {
+        const checkout = new (window as any).Razorpay({
+          key: orderData.order.keyId,
+          amount: orderData.order.amount,
+          currency: orderData.order.currency || 'INR',
+          name: 'BizMate AI',
+          description: 'Business Pro Plan - Razorpay Live Checkout',
+          order_id: orderData.order.orderId,
+          prefill: {
+            name: user?.name || 'Retail Store Owner',
+            email: user?.email || 'test@bizmate.ai'
+          },
+          theme: { color: '#3b82f6' },
+          handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+            try {
+              const verifyRes = await fetch('/api/v1/payments/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
+                body: JSON.stringify({
+                  orderId: response.razorpay_order_id,
+                  paymentId: response.razorpay_payment_id,
+                  signature: response.razorpay_signature
+                })
+              });
+              const verifyData = await verifyRes.json();
+              setRazorpayResult({ order: orderData.order, verification: verifyData });
+              if (verifyData.success) {
+                addToast('Razorpay payment verified & 2,000 PRO credits credited!', 'success');
+                await refreshUserData();
+              } else {
+                addToast(verifyData.error || 'Payment signature verification failed', 'error');
+              }
+            } catch (err: any) {
+              addToast(`Verification error: ${err.message}`, 'error');
+            } finally {
+              setTestingRazorpay(false);
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setTestingRazorpay(false);
+              addToast('Razorpay gateway window closed.', 'info');
+            }
+          }
+        });
+        checkout.on('payment.failed', (response: any) => {
+          setTestingRazorpay(false);
+          addToast(response?.error?.description || 'Payment was not completed.', 'error');
+        });
+        checkout.open();
+      } else {
+        setRazorpayResult({ order: orderData.order });
+        addToast(`Order created: ${orderData.order.orderId}`, 'success');
+        setTestingRazorpay(false);
       }
     } catch (err: any) {
-      addToast(`Razorpay test failed: ${err.message}`, 'error');
-    } finally {
+      addToast(`Razorpay checkout failed: ${err.message}`, 'error');
       setTestingRazorpay(false);
     }
   };
@@ -383,7 +438,7 @@ export const IntegrationsPage: React.FC = () => {
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
             >
               {testingRazorpay ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-              <span>Simulate ₹2,499 Checkout</span>
+              <span>Open Razorpay Gateway (₹1,499)</span>
             </button>
             {razorpayResult && (
               <span className="text-xs font-mono text-emerald-400">

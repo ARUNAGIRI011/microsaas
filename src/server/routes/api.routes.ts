@@ -677,6 +677,17 @@ apiRouter.get('/assets/:id/download', (req: Request, res: Response) => {
     return res.status(403).json({ success: false, errorCode: 'FORBIDDEN', error: 'Access denied: You do not own this asset' });
   }
 
+  // Handle uploaded assets stored as data URLs
+  if (asset.previewUrl && asset.previewUrl.startsWith('data:')) {
+    const parts = asset.previewUrl.split(',');
+    const match = parts[0].match(/:(.*?);/);
+    const mime = match ? match[1] : (asset.mimeType || 'image/png');
+    const buffer = Buffer.from(parts[1], 'base64');
+    res.setHeader('Content-Disposition', `attachment; filename="${asset.name}"`);
+    res.setHeader('Content-Type', mime);
+    return res.send(buffer);
+  }
+
   // Find associated generation output to produce actual pristine media file
   const output = Array.from(db.generationOutputs.values()).find(
     (o) => o.assetId === asset.id || o.jobId === asset.jobId

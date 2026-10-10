@@ -3,10 +3,17 @@
  * Mounts REST APIs (/api/v1) and Vite SPA middlewares on port 3000.
  */
 
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+
+// Load .env first, then fallback to .env.example
+dotenv.config();
+if (fs.existsSync(path.resolve(process.cwd(), '.env.example'))) {
+  dotenv.config({ path: path.resolve(process.cwd(), '.env.example') });
+}
+
 import { apiRouter } from './src/server/routes/api.routes.ts';
 
 const app = express();
