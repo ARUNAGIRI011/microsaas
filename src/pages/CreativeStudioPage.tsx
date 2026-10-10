@@ -255,7 +255,7 @@ export const CreativeStudioPage: React.FC = () => {
       businessPhone.trim() ? `Business phone: ${businessPhone.trim()}` : '',
       businessWebsite.trim() ? `Business website: ${businessWebsite.trim()}` : '',
       businessAddress.trim() ? `Business address/contact to include: ${businessAddress.trim()}` : '',
-      `Write all poster/thumbnail text and any video dialogue in ${selectedLanguage}. Preserve the business name, address, phone numbers and URLs exactly.`
+      `Write all poster/thumbnail text and any video dialogue in ${selectedLanguage}. Preserve the business name, tagline, address, phone numbers and URLs exactly. Do not invent missing contact details or business claims.`
     ].filter(Boolean).join('\n');
 
     try {
@@ -273,7 +273,6 @@ export const CreativeStudioPage: React.FC = () => {
             logoDataUrl: logoUrl || undefined,
             productImageDataUrl: productImageUrl || undefined,
             aspectRatio: selectedType === 'youtube_thumbnail' ? '16:9' : aspectRatio === '4:5' ? '4:5' : '1:1',
-            language: selectedLanguage,
             businessName: businessName.trim(),
             brandTagline: brandTagline.trim(),
             businessPhone: businessPhone.trim(),
