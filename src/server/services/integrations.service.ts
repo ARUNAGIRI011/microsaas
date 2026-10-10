@@ -17,7 +17,7 @@ export class IntegrationsService {
     const isWhatsSet = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
     const isYouTubeSet = Boolean(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET);
     const isSheetsSet = Boolean(process.env.GOOGLE_SHEETS_SPREADSHEET_ID && process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
-    const isHiggsfieldSet = Boolean(process.env.HIGGSFIELD_API_KEY?.trim());
+    const isHiggsfieldSet = Boolean(process.env.MUAPI_API_KEY?.trim());
 
     return [
       {
@@ -84,13 +84,13 @@ export class IntegrationsService {
           : 'Google Sheets dataset generator active with instant CSV export and multi-tab ledger reconciliation.'
       },
       {
-        name: 'Higgsfield UGC Video API',
+        name: 'Open-Higgsfield AI (MuAPI)',
         category: 'AI_PROVIDER',
         configured: isHiggsfieldSet,
         statusText: isHiggsfieldSet ? 'CONFIGURED & ACTIVE' : 'NOT CONFIGURED / NOT TESTED',
         details: isHiggsfieldSet
-          ? 'Server-side Higgsfield video generation is configured; provider billing may apply.'
-          : 'Set HIGGSFIELD_API_KEY in the server environment to enable actual video renders. Storyboard generation alone does not render a video.'
+          ? 'Open-Higgsfield-compatible MuAPI image and video generation is configured; model usage may be billed.'
+          : 'Set MUAPI_API_KEY in the server environment to enable actual image and video renders. The open-source studio code alone does not include free inference compute.'
       }
     ];
   }
