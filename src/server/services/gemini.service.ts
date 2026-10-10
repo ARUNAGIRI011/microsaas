@@ -100,6 +100,10 @@ Respond strictly with valid JSON conforming to this structure:
       const text = response.text || '';
       return JSON.parse(text);
     } catch (error) {
+      await CostTrackingService.record({
+        userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: 'analyze-requirement',
+        status: 'failed', durationMs: Date.now() - startedAt
+      });
       console.warn('Gemini analyzeRequirement failed, falling back to heuristic plan:', error);
       return this.fallbackCreativePlan(requirement);
     }
@@ -281,6 +285,10 @@ Return JSON:
         };
       }
     } catch (err) {
+      await CostTrackingService.record({
+        userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: `generate-creative-${type}`,
+        status: 'failed', durationMs: Date.now() - startedAt
+      });
       console.warn('Gemini generateCreativeAsset error, falling back:', err);
       return this.fallbackAssetGeneration(type, requirement, options);
     }
@@ -324,6 +332,10 @@ Keep replies structured, concise, and focused on business ROI. If the user asks 
       });
       return response.text || 'I am ready to help optimize your business marketing strategy.';
     } catch (err: any) {
+      await CostTrackingService.record({
+        userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: 'chat-assistant',
+        status: 'failed', durationMs: Date.now() - startedAt
+      });
       return `BizMate Assistant: Could not reach AI service (${err?.message || 'Network error'}). Please try again or check your API key configuration.`;
     }
   }
