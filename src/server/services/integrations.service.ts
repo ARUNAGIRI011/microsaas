@@ -17,6 +17,7 @@ export class IntegrationsService {
     const isWhatsSet = Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
     const isYouTubeSet = Boolean(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET);
     const isSheetsSet = Boolean(process.env.GOOGLE_SHEETS_SPREADSHEET_ID && process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
+    const isHiggsfieldSet = Boolean(process.env.HIGGSFIELD_API_KEY?.trim());
 
     return [
       {
@@ -83,11 +84,13 @@ export class IntegrationsService {
           : 'Google Sheets dataset generator active with instant CSV export and multi-tab ledger reconciliation.'
       },
       {
-        name: 'Open-Source Video / Storyboard Engine',
+        name: 'Higgsfield UGC Video API',
         category: 'AI_PROVIDER',
-        configured: true,
-        statusText: 'CONFIGURED & ACTIVE',
-        details: 'Multi-scene promotional video storyboard engine active with audio direction, pacing cues, and visual prompts.'
+        configured: isHiggsfieldSet,
+        statusText: isHiggsfieldSet ? 'CONFIGURED — LIVE API CALLS ENABLED' : 'NOT CONFIGURED',
+        details: isHiggsfieldSet
+          ? 'Server-side Higgsfield video generation is configured; provider billing may apply.'
+          : 'Set HIGGSFIELD_API_KEY in the server environment to enable actual video renders. Storyboard generation alone does not render a video.'
       }
     ];
   }
