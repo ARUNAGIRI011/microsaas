@@ -49,7 +49,7 @@ BizMate AI now calls the MuAPI endpoints used by the [Open-Higgsfield-AI open-so
 
 Add `MUAPI_API_KEY` as a **server-only** environment variable in Vercel Preview and Production. Do not use a `VITE_*` prefix. Create the key in the MuAPI account and check its free quota/pricing before allowing customer generation. No MuAPI key is embedded in the repository.
 
-- Poster, Instagram creative, and YouTube thumbnail generation submits a `flux-dev-image` job.
+- Poster, Instagram creative, and YouTube thumbnail generation submits a `nano-banana` image job.
 - UGC video generation submits a Seedance 2.0 text-to-video job, or image-to-video when a supported product/logo reference is uploaded.
 - The API uses `POST /api/v1/{model-endpoint}` and polls `GET /api/v1/predictions/{request_id}/result`, matching the upstream project pattern.
 - Output images/videos are shown in the Creative Studio when the provider reports a completed job.
