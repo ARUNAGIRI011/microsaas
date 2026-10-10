@@ -93,10 +93,9 @@ apiRouter.get('/auth/supabase/me', async (req: Request, res: Response) => {
 // For MVP with session simulation, defaults to demo user or x-user-id header
 function getAuthUser(req: Request) {
   const customUserId = req.headers['x-user-id'] as string;
-  if (customUserId && db.users.has(customUserId)) {
-    return db.users.get(customUserId)!;
-  }
-  return db.users.get('usr-demo-001')!; // Default active session
+  const user = customUserId ? db.users.get(customUserId) : undefined;
+  if (!user) throw new Error('AUTH_REQUIRED');
+  return user;
 }
 
 // Middleware: Enforce Admin Role
@@ -118,6 +117,17 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
+
+// Legacy endpoints require an explicitly registered user. Never silently fall back to a demo identity.
+apiRouter.use((req: Request, res: Response, next: NextFunction) => {
+  const publicPaths = new Set(['/auth/login', '/auth/register', '/plans', '/integrations/status', '/integrations/gemini/test', '/integrations/supabase/test']);
+  if (publicPaths.has(req.path)) return next();
+  const userId = req.header('x-user-id');
+  if (!userId || !db.users.has(userId)) {
+    return res.status(401).json({ success: false, errorCode: 'AUTH_REQUIRED', error: 'Sign in with a registered account before using this feature.' });
+  }
+  next();
+});
 
 // ---------------- AUTH ROUTES ----------------
 apiRouter.get('/auth/me', (req: Request, res: Response) => {
@@ -217,22 +227,14 @@ apiRouter.post('/auth/register', (req: Request, res: Response) => {
 });
 
 // Helper for live preview switching between USER and ADMIN
-apiRouter.post('/auth/switch-role', (req: Request, res: Response) => {
-  const { targetRole } = req.body;
-  let targetUser = Array.from(db.users.values()).find((u) => u.role === targetRole);
-  if (!targetUser) {
-    targetUser = db.users.get('usr-admin-001')!;
-  }
-  res.json({
-    success: true,
-    user: targetUser
-  });
+apiRouter.post('/auth/switch-role', (_req: Request, res: Response) => {
+  return res.status(403).json({ success: false, errorCode: 'FORBIDDEN', error: 'Role switching is disabled. Roles must be assigned by a trusted administrator.' });
 });
 
 // ---------------- LOW-COST AI POSTER IMAGE GENERATION ----------------
 apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Response) => {
   const user = getAuthUser(req);
-  const { prompt, logoDataUrl, productImageDataUrl, aspectRatio, language } = req.body ?? {};
+  const { prompt, logoDataUrl, productImageDataUrl, aspectRatio, language, businessName, brandTagline, businessPhone, businessWebsite, businessAddress } = req.body ?? {};
   if (typeof prompt !== 'string' || !prompt.trim()) {
     return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'A poster prompt is required.' });
   }
@@ -300,7 +302,7 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
       }
       const result = await HiggsfieldService.submitPoster({
         userId: user.id,
-        prompt: prompt.trim().slice(0, 6000),
+        prompt: fullPrompt,
         logoDataUrl: typeof logoDataUrl === 'string' ? logoDataUrl : undefined,
         productImageDataUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined,
         aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '1:1'
@@ -309,7 +311,7 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
       return res.status(202).json({ success: true, ...result, message: 'MuAPI poster job submitted. Provider usage may be billed.' });
     }
     const result = await HiggsfieldService.generatePosterImage({
-      prompt: prompt.trim().slice(0, 6000),
+      prompt: fullPrompt,
       aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '1:1'
     });
     await CostTrackingService.record({
@@ -341,7 +343,7 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
       });
       const generated = await GeminiService.generateCreativeAsset(
         'promotional_poster',
-        prompt.trim().slice(0, 6000),
+        fullPrompt,
         { aspectRatio: aspect, language: typeof language === 'string' ? language.slice(0, 60) : 'English' },
         user.id
       );
@@ -447,9 +449,14 @@ apiRouter.post('/creative/analyze', async (req: Request, res: Response) => {
   if (!requirement || typeof requirement !== 'string') {
     return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'Business requirement text is required' });
   }
-
-  const plan = await GeminiService.analyzeRequirement(requirement, user.id);
-  res.json({ success: true, plan });
+  try {
+    const plan = await GeminiService.analyzeRequirement(requirement, user.id);
+    return res.json({ success: true, plan, provider: 'gemini' });
+  } catch (error: any) {
+    const message = error?.message || 'AI analysis failed';
+    const status = /GEMINI_NOT_CONFIGURED/.test(message) ? 503 : 502;
+    return res.status(status).json({ success: false, errorCode: status === 503 ? 'GEMINI_NOT_CONFIGURED' : 'AI_ANALYSIS_FAILED', error: message });
+  }
 });
 
 apiRouter.post('/generations', async (req: Request, res: Response) => {
@@ -712,8 +719,14 @@ apiRouter.post('/chat', async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'Message is required' });
   }
 
-  const reply = await GeminiService.chatAssistant(message, history || [], user.id);
-  res.json({ success: true, reply });
+  try {
+    const reply = await GeminiService.chatAssistant(message, history || [], user.id);
+    return res.json({ success: true, reply, provider: 'gemini' });
+  } catch (error: any) {
+    const messageText = error?.message || 'AI assistant request failed';
+    const status = /GEMINI_NOT_CONFIGURED/.test(messageText) ? 503 : 502;
+    return res.status(status).json({ success: false, errorCode: status === 503 ? 'GEMINI_NOT_CONFIGURED' : 'AI_CHAT_FAILED', error: messageText });
+  }
 });
 
 // ---------------- INTEGRATIONS HEALTH & LIVE DISPATCHES ----------------
