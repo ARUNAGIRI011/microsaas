@@ -228,6 +228,33 @@ apiRouter.post('/auth/switch-role', (req: Request, res: Response) => {
   });
 });
 
+// ---------------- OPEN-HIGGSFIELD POSTER IMAGE GENERATION ----------------
+apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Response) => {
+  const user = getAuthUser(req);
+  const { prompt, logoDataUrl, productImageDataUrl, aspectRatio } = req.body ?? {};
+  if (typeof prompt !== 'string' || !prompt.trim()) {
+    return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'A poster prompt is required.' });
+  }
+  if ([logoDataUrl, productImageDataUrl].some((value) => typeof value === 'string' && value.length > 1.8 * 1024 * 1024)) {
+    return res.status(413).json({ success: false, errorCode: 'UPLOAD_TOO_LARGE', error: 'Each reference image must be 1.2 MB or smaller.' });
+  }
+  if (!HiggsfieldService.isConfigured()) {
+    return res.status(503).json({ success: false, errorCode: 'OPEN_HIGGSFIELD_NOT_CONFIGURED', error: 'Add MUAPI_API_KEY to the server environment to enable Open-Higgsfield image generation.' });
+  }
+  try {
+    const result = await HiggsfieldService.submitPoster({
+      userId: user.id,
+      prompt: prompt.trim().slice(0, 6000),
+      logoDataUrl: typeof logoDataUrl === 'string' ? logoDataUrl : undefined,
+      productImageDataUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined,
+      aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '1:1'
+    });
+    return res.status(202).json({ success: true, ...result, message: 'Poster image job submitted. Poll status until completed.' });
+  } catch (error: any) {
+    return res.status(502).json({ success: false, errorCode: 'OPEN_HIGGSFIELD_REQUEST_FAILED', error: error?.message || 'Could not submit poster generation.' });
+  }
+});
+
 // ---------------- HIGGSFIELD UGC VIDEO GENERATION ----------------
 apiRouter.post('/videos/higgsfield/generate', async (req: Request, res: Response) => {
   const user = getAuthUser(req);
