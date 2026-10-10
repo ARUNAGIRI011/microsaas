@@ -32,16 +32,10 @@ import {
 import { GenerationType, GenerationJob, GenerationOutput, ConceptStyle } from '../server/types/index.ts';
 import { PosterCanvas } from '../components/PosterCanvas.tsx';
 
-// Sample Brand Assets for immediate 1-click preview
-const SAMPLE_LOGO_GOLD = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="50" viewBox="0 0 160 50"><text x="80" y="32" font-family="serif" font-size="20" font-weight="900" fill="%23fbbf24" text-anchor="middle" letter-spacing="4">CHENNAI</text></svg>`;
-const SAMPLE_PRODUCT_SAREE = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="340" height="190" viewBox="0 0 340 190"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%23881337"/><stop offset="100%" stop-color="%23fbbf24"/></linearGradient></defs><rect width="340" height="190" fill="url(%23g)"/><text x="170" y="95" font-family="serif" font-size="22" font-weight="900" fill="%23ffffff" text-anchor="middle">Kanchipuram Pure Silk</text><text x="170" y="125" font-family="sans-serif" font-size="14" fill="%23fef3c7" text-anchor="middle">Handwoven Zari Showcase</text></svg>`;
-
 export const CreativeStudioPage: React.FC = () => {
   const { user, balance, refreshUserData, addToast } = useApp();
 
-  const [requirement, setRequirement] = useState(
-    'Create a Deepavali promotion for my clothing shop in Chennai with 40% discount on silk sarees'
-  );
+  const [requirement, setRequirement] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [creativePlan, setCreativePlan] = useState<any>(null);
 
@@ -50,6 +44,10 @@ export const CreativeStudioPage: React.FC = () => {
   const [tone, setTone] = useState<'festive' | 'professional' | 'urgent' | 'luxury' | 'friendly'>('festive');
   const [offerText, setOfferText] = useState('FLAT 40% OFF');
   const [conceptStyle, setConceptStyle] = useState<ConceptStyle>('festive_heritage');
+  const [businessName, setBusinessName] = useState(user?.businessName || '');
+  const [brandTagline, setBrandTagline] = useState('');
+  const [businessPhone, setBusinessPhone] = useState('');
+  const [businessWebsite, setBusinessWebsite] = useState('');
   const [businessAddress, setBusinessAddress] = useState('');
   const [posterLanguage, setPosterLanguage] = useState('Tamil');
   const [thumbnailLanguage, setThumbnailLanguage] = useState('English');
@@ -61,10 +59,14 @@ export const CreativeStudioPage: React.FC = () => {
   const [posterStatus, setPosterStatus] = useState('');
   const [posterUrl, setPosterUrl] = useState('');
 
+  // Constitution's 22 scheduled Indian languages plus five widely used international languages.
+  // Actual script quality depends on the selected generation provider/model.
   const contentLanguages = [
-    'English', 'Tamil', 'Hindi', 'Telugu', 'Malayalam', 'Kannada', 'Bengali',
-    'Marathi', 'Gujarati', 'Punjabi', 'Urdu', 'Odia', 'Assamese',
-    'Spanish', 'French', 'Arabic'
+    'Assamese', 'Bengali', 'Bodo', 'Dogri', 'Gujarati', 'Hindi', 'Kannada',
+    'Kashmiri', 'Konkani', 'Maithili', 'Malayalam', 'Manipuri', 'Marathi',
+    'Nepali', 'Odia', 'Punjabi', 'Sanskrit', 'Santali', 'Sindhi', 'Tamil',
+    'Telugu', 'Urdu',
+    'English', 'Spanish', 'French', 'Arabic', 'Chinese (Mandarin)'
   ];
 
   // User Uploads State
@@ -79,11 +81,11 @@ export const CreativeStudioPage: React.FC = () => {
 
   // Email / WhatsApp Modal states
   const [emailModal, setEmailModal] = useState(false);
-  const [emailTo, setEmailTo] = useState(user?.email || 'arunagirinathan6@gmail.com');
+  const [emailTo, setEmailTo] = useState(user?.email || '');
   const [emailSending, setEmailSending] = useState(false);
 
   const [waModal, setWaModal] = useState(false);
-  const [waPhone, setWaPhone] = useState('+919876543210');
+  const [waPhone, setWaPhone] = useState('');
   const [waSending, setWaSending] = useState(false);
 
   // Poll the asynchronous Higgsfield render without blocking the page.
@@ -248,7 +250,10 @@ export const CreativeStudioPage: React.FC = () => {
       : selectedType === 'promotional_video' ? videoLanguage : posterLanguage;
     const businessContext = [
       requirement.trim(),
-      user?.businessName ? `Business/brand name: ${user.businessName}` : '',
+      businessName.trim() ? `Business/brand name: ${businessName.trim()}` : '',
+      brandTagline.trim() ? `Brand tagline: ${brandTagline.trim()}` : '',
+      businessPhone.trim() ? `Business phone: ${businessPhone.trim()}` : '',
+      businessWebsite.trim() ? `Business website: ${businessWebsite.trim()}` : '',
       businessAddress.trim() ? `Business address/contact to include: ${businessAddress.trim()}` : '',
       `Write all poster/thumbnail text and any video dialogue in ${selectedLanguage}. Preserve the business name, address, phone numbers and URLs exactly.`
     ].filter(Boolean).join('\n');
@@ -332,6 +337,10 @@ export const CreativeStudioPage: React.FC = () => {
             aspectRatio,
             language: selectedLanguage,
             businessAddress,
+            businessName,
+            brandTagline,
+            businessPhone,
+            businessWebsite,
             tone,
             offerText,
             conceptStyle,
@@ -495,72 +504,6 @@ export const CreativeStudioPage: React.FC = () => {
           />
         </div>
 
-        {/* Quick Presets */}
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-neutral-400">
-          <span className="font-semibold text-neutral-300">Sample Campaigns:</span>
-          <button
-            onClick={() => {
-              setRequirement('Create a Deepavali promotion for my clothing shop in Chennai with 40% discount on pure Kanchipuram silk sarees');
-              setSelectedType('promotional_poster');
-              setTone('festive');
-              setOfferText('FLAT 40% OFF');
-              setConceptStyle('festive_heritage');
-              setLogoUrl(SAMPLE_LOGO_GOLD);
-              setProductImageUrl(SAMPLE_PRODUCT_SAREE);
-            }}
-            className="px-2.5 py-1 rounded-md bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-white transition cursor-pointer"
-          >
-            🪔 Chennai Silk Festival
-          </button>
-          <button
-            onClick={() => {
-              setRequirement('Weekend brunch grand opening for artisanal sourdough bakery & cafe in Indiranagar Bengaluru');
-              setSelectedType('instagram_creative');
-              setTone('friendly');
-              setOfferText('FREE ARTISAN COFFEE');
-              setConceptStyle('artisan_organic');
-            }}
-            className="px-2.5 py-1 rounded-md bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-white transition cursor-pointer"
-          >
-            ☕ Bengaluru Cafe Launch
-          </button>
-          <button
-            onClick={() => {
-              setRequirement('Year-end IT certification bootcamp flash sale for tech professionals in Hyderabad');
-              setSelectedType('youtube_thumbnail');
-              setTone('urgent');
-              setOfferText('EARLY BIRD ₹4,999');
-              setConceptStyle('neon_cyber');
-            }}
-            className="px-2.5 py-1 rounded-md bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-white transition cursor-pointer"
-          >
-            💻 Tech Bootcamp Thumbnail
-          </button>
-          <button
-            onClick={() => {
-              setRequirement('Grand bridal diamond jewellery exhibition and luxury royal solitaire preview in Mumbai');
-              setSelectedType('promotional_poster');
-              setTone('luxury');
-              setOfferText('ROYAL BRIDAL PREVIEW');
-              setConceptStyle('luxury_royale');
-            }}
-            className="px-2.5 py-1 rounded-md bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-white transition cursor-pointer"
-          >
-            👑 Luxury Bridal Solitaire
-          </button>
-          <button
-            onClick={() => {
-              setRequirement('Midnight warehouse clearance mega liquidation sale with flat 50% discount on all apparel');
-              setSelectedType('promotional_poster');
-              setTone('urgent');
-              setOfferText('FLAT 50% CLEARANCE');
-              setConceptStyle('retail_impact');
-            }}
-            className="px-2.5 py-1 rounded-md bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-white transition cursor-pointer"
-          >
-            💥 Flash Clearance Sale
-          </button>
-        </div>
       </div>
 
       {/* AI Strategic Blueprint Card (if analyzed) */}
@@ -675,13 +618,6 @@ export const CreativeStudioPage: React.FC = () => {
                 <Image className="w-3.5 h-3.5 text-amber-400" />
                 <span>Choose Logo File</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setLogoUrl(SAMPLE_LOGO_GOLD)}
-                className="px-2.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-[11px] text-neutral-400 hover:text-white transition"
-              >
-                Sample Gold Monogram
-              </button>
             </div>
 
             {logoUrl && (
@@ -726,13 +662,6 @@ export const CreativeStudioPage: React.FC = () => {
                 <Image className="w-3.5 h-3.5 text-amber-400" />
                 <span>Choose Product Photo</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setProductImageUrl(SAMPLE_PRODUCT_SAREE)}
-                className="px-2.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-[11px] text-neutral-400 hover:text-white transition"
-              >
-                Sample Silk Saree
-              </button>
             </div>
 
             {productImageUrl && (
@@ -743,10 +672,27 @@ export const CreativeStudioPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Business contact and per-asset language settings */}
+        {/* Business identity and per-asset language settings */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-neutral-950 border border-neutral-800">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-neutral-200">Business address / contact details</label>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-neutral-200">Business / brand name</label>
+              <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} maxLength={100} placeholder="Your registered business or brand name" className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100 focus:outline-hidden focus:border-amber-400" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-neutral-200">Tagline</label>
+              <input value={brandTagline} onChange={(e) => setBrandTagline(e.target.value)} maxLength={160} placeholder="Short brand promise or slogan" className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100 focus:outline-hidden focus:border-amber-400" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-neutral-200">Business phone</label>
+              <input value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} maxLength={30} placeholder="+91..." className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100 focus:outline-hidden focus:border-amber-400" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-neutral-200">Website / social link</label>
+              <input value={businessWebsite} onChange={(e) => setBusinessWebsite(e.target.value)} maxLength={160} placeholder="https:// or social profile URL" className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100 focus:outline-hidden focus:border-amber-400" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-neutral-200">Business address</label>
             <textarea
               rows={2}
               maxLength={80}
