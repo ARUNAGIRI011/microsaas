@@ -13,6 +13,34 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+-- Create a profile row for each Supabase Auth user. Metadata is user-supplied;
+-- authorization roles must never be derived from these metadata fields.
+create or replace function public.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+  insert into public.profiles (id, email, display_name)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data ->> 'full_name', '')
+  )
+  on conflict (id) do update
+    set email = excluded.email,
+        display_name = excluded.display_name,
+        updated_at = now();
+  return new;
+end;
+$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert or update of email, raw_user_meta_data on auth.users
+  for each row execute procedure public.handle_new_auth_user();
+
 create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
