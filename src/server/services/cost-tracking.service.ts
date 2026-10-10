@@ -12,8 +12,6 @@ import { db } from '../db/database.ts';
 
 export type ProviderUsageInput = {
   userId: string;
-  userName: string;
-  userEmail: string;
   provider: string;
   model: string;
   operation: string;
@@ -29,6 +27,8 @@ export type ProviderUsageInput = {
 export type ProviderUsageEvent = {
   id: string;
   userId: string;
+  userName: string;
+  userEmail: string;
   provider: string;
   model: string;
   operation: string;
