@@ -332,13 +332,15 @@ Keep replies structured, concise, and focused on business ROI. If the user asks 
         }
       });
 
+      const reply = response.text?.trim();
+      if (!reply) throw new Error('GEMINI_EMPTY_RESPONSE: The provider returned no assistant text.');
       const usage = (response as any).usageMetadata || {};
       await CostTrackingService.record({
         userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: 'chat-assistant',
         status: 'succeeded', inputTokens: usage.promptTokenCount, outputTokens: usage.candidatesTokenCount,
         totalTokens: usage.totalTokenCount, durationMs: Date.now() - startedAt
       });
-      return response.text || 'I am ready to help optimize your business marketing strategy.';
+      return reply;
     } catch (err: any) {
       await CostTrackingService.record({
         userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: 'chat-assistant',
