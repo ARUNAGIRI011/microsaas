@@ -223,6 +223,7 @@ export const CreativeStudioPage: React.FC = () => {
     try {
       // Submit the paid video render first. If the provider is not configured, do not consume app credits.
       if (selectedType === 'promotional_video') {
+        setVideoJob(null);
         setVideoUrl('');
         setVideoStatus('submitting');
         const videoRes = await fetch('/api/v1/videos/higgsfield/generate', {
