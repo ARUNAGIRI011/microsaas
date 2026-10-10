@@ -12,6 +12,8 @@ import { db } from '../db/database.ts';
 
 export type ProviderUsageInput = {
   userId: string;
+  userName: string;
+  userEmail: string;
   provider: string;
   model: string;
   operation: string;
@@ -99,9 +101,12 @@ export class CostTrackingService {
       && Number.isFinite(estimate.costUsd) && estimate.costUsd >= 0
       ? estimate.costUsd
       : null;
+    const knownUser = db.users.get(input.userId);
     const event: ProviderUsageEvent = {
       id: randomUUID(),
       userId: input.userId || 'unknown',
+      userName: knownUser?.name || 'Unknown user',
+      userEmail: knownUser?.email || '—',
       provider: input.provider,
       model: input.model,
       operation: input.operation,
@@ -126,6 +131,8 @@ export class CostTrackingService {
       const { error } = await client.from('provider_usage_events').insert({
         id: event.id,
         user_id: event.userId,
+        user_name: event.userName,
+        user_email: event.userEmail,
         provider: event.provider,
         model: event.model,
         operation: event.operation,
@@ -158,13 +165,15 @@ export class CostTrackingService {
       if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
         const client = createSupabaseAdminClient();
         const { data, error } = await client.from('provider_usage_events')
-          .select('id,user_id,provider,model,operation,status,input_tokens,output_tokens,total_tokens,cost_usd,cost_status,duration_ms,pricing_source,created_at')
+          .select('id,user_id,user_name,user_email,provider,model,operation,status,input_tokens,output_tokens,total_tokens,cost_usd,cost_status,duration_ms,pricing_source,created_at')
           .order('created_at', { ascending: false })
           .limit(2000);
         if (!error && data) {
           const persisted: ProviderUsageEvent[] = data.map((row: any) => ({
             id: String(row.id),
             userId: String(row.user_id),
+            userName: String(row.user_name || 'Unknown user'),
+            userEmail: String(row.user_email || '—'),
             provider: String(row.provider),
             model: String(row.model),
             operation: String(row.operation),
@@ -202,8 +211,8 @@ export class CostTrackingService {
       const user = db.users.get(userId);
       return {
         userId,
-        name: user?.name || 'User not in current process cache',
-        email: user?.email || '—',
+        name: events.find(event => event.userName !== 'Unknown user')?.userName || user?.name || 'User not in current process cache',
+        email: events.find(event => event.userEmail !== '—')?.userEmail || user?.email || '—',
         calls: events.length,
         tokens: events.reduce((sum, event) => sum + event.totalTokens, 0),
         pricedCalls: events.filter(event => event.costUsd !== null).length,
@@ -240,7 +249,7 @@ export class CostTrackingService {
       byProvider,
       recentEvents: rows.slice(0, 100).map(event => {
         const user = db.users.get(event.userId);
-        return { ...event, userName: user?.name || 'Unknown user', userEmail: user?.email || '—' };
+        return { ...event, userName: event.userName || user?.name || 'Unknown user', userEmail: event.userEmail || user?.email || '—' };
       })
     };
   }
