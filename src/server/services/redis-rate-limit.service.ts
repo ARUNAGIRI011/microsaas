@@ -49,7 +49,7 @@ export class RedisRateLimitService {
       const isGeneration = /generation|creative|videos\/higgsfield/i.test(path);
       const limit = isAuth ? 10 : isGeneration ? 20 : 120;
       const bearer = req.header('authorization') || '';
-      const identity = req.header('x-user-id') || (bearer ? bearer.slice(-32) : '') || req.ip || 'unknown';
+      const identity = `${req.ip || 'unknown'}:${req.header('x-user-id') || (bearer ? bearer.slice(-32) : 'anonymous')}`;
       const group = isAuth ? 'auth' : isGeneration ? 'generation' : 'api';
       try {
         const result = await RedisRateLimitService.consume(`bizmate:rl:v1:${group}:${identity}`, limit, 60);
