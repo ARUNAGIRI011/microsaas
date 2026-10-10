@@ -240,6 +240,59 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
     return res.status(413).json({ success: false, errorCode: 'UPLOAD_TOO_LARGE', error: 'Each reference image must be 1.2 MB or smaller.' });
   }
   const provider = (process.env.POSTER_IMAGE_PROVIDER || 'huggingface').trim().toLowerCase();
+
+  // Text-to-image endpoints cannot reliably apply uploaded brand assets. When a
+  // logo/product reference is provided, compose a precise branded SVG instead of
+  // silently ignoring the user's uploads. MuAPI's reference-image route handles
+  // uploaded references directly.
+  if ((typeof logoDataUrl === 'string' || typeof productImageDataUrl === 'string') && provider !== 'muapi') {
+    try {
+      const selectedLanguage = typeof language === 'string' ? language.slice(0, 60) : 'English';
+      const generated = await GeminiService.generateCreativeAsset(
+        'promotional_poster',
+        prompt.trim().slice(0, 6000),
+        { aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '1:1', language: selectedLanguage },
+        user.id
+      );
+      const layout = (generated.layoutConfig || {}) as Record<string, string | undefined>;
+      const svg = generatePosterSVG({
+        headline: String(layout.headline || generated.headlines?.[0] || prompt.trim().slice(0, 80)),
+        subhead: String(layout.subhead || generated.headlines?.[1] || ''),
+        body: String(layout.body || generated.bodyCopy || prompt.trim().slice(0, 180)),
+        cta: String(layout.cta || generated.callToAction || ''),
+        badgeText: String(layout.badgeText || ''),
+        badgeColor: String(layout.badgeColor || '#F59E0B'),
+        backgroundColor: String(layout.backgroundColor || '#881337'),
+        textColor: String(layout.textColor || '#FFFBEB'),
+        accentColor: String(layout.accentColor || '#FBBF24'),
+        aspectRatio: (typeof aspectRatio === 'string' ? aspectRatio : '1:1') as any,
+        brandName: typeof req.body.businessName === 'string' ? req.body.businessName.slice(0, 100) : user.businessName,
+        logoUrl: typeof logoDataUrl === 'string' ? logoDataUrl : undefined,
+        productImageUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined
+      });
+      await CostTrackingService.record({
+        userId: user.id, provider: 'bizmate-svg-brand-composer', model: 'editable-svg',
+        operation: 'branded-poster-composition', status: 'succeeded', costUsd: 0,
+        pricingSource: 'no-external-image-inference'
+      });
+      return res.json({
+        success: true,
+        status: 'completed',
+        provider: 'bizmate-svg-brand-composer',
+        model: 'editable-svg',
+        outputUrl: `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`,
+        referenceImagesApplied: true,
+        message: `Branded poster composed with your uploaded logo/product image and ${selectedLanguage} copy. Exact logo placement is preserved in the editable SVG.`
+      });
+    } catch (error: any) {
+      return res.status(502).json({
+        success: false,
+        errorCode: 'BRANDED_POSTER_COMPOSITION_FAILED',
+        error: error?.message || 'Could not compose the branded poster. Verify Gemini text generation is configured.'
+      });
+    }
+  }
+
   try {
     if (provider === 'muapi') {
       if (!HiggsfieldService.isConfigured()) {
