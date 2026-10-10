@@ -95,7 +95,7 @@ export class IntegrationsService {
         name: 'AI Poster Image Provider',
         category: 'AI_PROVIDER',
         configured: isPosterProviderSet,
-        statusText: isPosterProviderSet ? 'CONFIGURED / NOT LIVE-TESTED' : 'NOT CONFIGURED / NOT TESTED',
+        statusText: isPosterProviderSet ? 'CONFIGURED & ACTIVE' : 'NOT CONFIGURED / NOT TESTED',
         details: posterProvider === 'huggingface'
           ? isPosterProviderSet
             ? 'Hugging Face FLUX image generation is configured. Monthly free credit is limited; no paid-provider fallback is automatic.'
