@@ -31,7 +31,7 @@ export const PricingPage: React.FC = () => {
       const res = await fetch('/api/v1/payments/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
-        body: JSON.stringify({ planId })
+        body: JSON.stringify({ planId, billingInterval: billingCycle })
       });
       const data = await res.json();
       if (!res.ok || !data.success || !data.order?.orderId || !data.order?.keyId) {
@@ -57,7 +57,7 @@ export const PricingPage: React.FC = () => {
         amount: data.order.amount,
         currency: data.order.currency || 'INR',
         name: 'BizMate AI',
-        description: `${planId} subscription`,
+        description: `${planId} ${billingCycle === 'year' ? 'annual' : 'monthly'} subscription`,
         order_id: data.order.orderId,
         prefill: { name: user.name || '', email: user.email || '' },
         notes: { planId },
@@ -152,6 +152,7 @@ export const PricingPage: React.FC = () => {
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-extrabold text-white">₹0</span>
                 <span className="text-xs text-neutral-400">/mo</span>
+                {billingCycle === 'year' && <span className="text-[10px] text-emerald-400 ml-2">billed yearly</span>}
               </div>
 
               <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800/80 text-xs space-y-1 font-mono">
@@ -251,6 +252,7 @@ export const PricingPage: React.FC = () => {
                   ₹{billingCycle === 'year' ? '1,199' : '1,499'}
                 </span>
                 <span className="text-xs text-neutral-400">/mo</span>
+                {billingCycle === 'year' && <span className="text-[10px] text-emerald-400 ml-2">billed yearly</span>}
               </div>
 
               <div className="p-3 rounded-xl bg-neutral-950 border border-amber-500/30 text-xs space-y-1 font-mono">
@@ -299,8 +301,9 @@ export const PricingPage: React.FC = () => {
               </div>
 
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-extrabold text-white">Custom</span>
-                <span className="text-xs text-neutral-400">(from ₹9,999)</span>
+                <span className="text-3xl font-extrabold text-white">₹{billingCycle === 'year' ? '7,999' : '9,999'}</span>
+                <span className="text-xs text-neutral-400">/mo</span>
+                {billingCycle === 'year' && <span className="text-[10px] text-emerald-400 ml-2">billed yearly</span>}
               </div>
 
               <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-800/80 text-xs space-y-1 font-mono">
@@ -328,10 +331,11 @@ export const PricingPage: React.FC = () => {
             </div>
 
             <button
-              onClick={() => navigate('/contact')}
-              className="w-full py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-semibold text-xs transition"
+              onClick={() => handleSelectPlan('ENTERPRISE')}
+              disabled={subscription?.planId === 'ENTERPRISE' || processingPayment}
+              className="w-full py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-semibold text-xs transition disabled:opacity-50"
             >
-              Contact Sales
+              {subscription?.planId === 'ENTERPRISE' ? 'Current Plan' : processingPayment ? 'Opening Checkout…' : 'Upgrade to Enterprise'}
             </button>
           </div>
         </div>
