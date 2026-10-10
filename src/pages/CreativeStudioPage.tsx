@@ -693,15 +693,9 @@ export const CreativeStudioPage: React.FC = () => {
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-neutral-200">Business address</label>
-            <textarea
-              rows={2}
-              maxLength={80}
-              value={businessAddress}
-              onChange={(e) => setBusinessAddress(e.target.value)}
-              placeholder="Shop address, city, phone or website to include in the creative"
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100 focus:outline-hidden focus:border-amber-400"
-            />
-            <p className="text-[10px] text-neutral-500">Only include contact details you want shown publicly in the ad.</p>
+              <textarea rows={2} maxLength={180} value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="Street, city, postal code" className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-neutral-100 focus:outline-hidden focus:border-amber-400" />
+              <p className="text-[10px] text-neutral-500">Only include details you want shown publicly.</p>
+            </div>
           </div>
           <div className="space-y-3">
             <div className="space-y-1.5">
@@ -722,6 +716,7 @@ export const CreativeStudioPage: React.FC = () => {
                 {contentLanguages.map((language) => <option key={language} value={language}>{language}</option>)}
               </select>
             </div>
+            <p className="text-[10px] text-neutral-500">22 scheduled Indian languages plus English, Spanish, French, Arabic, and Mandarin. Script and spoken-language quality varies by provider/model; review before publishing.</p>
           </div>
         </div>
 
