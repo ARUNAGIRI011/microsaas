@@ -16,6 +16,7 @@ import { generatePosterSVG } from '../../lib/svg-generator.ts';
 import { SupabaseAuthService } from '../services/supabase-auth.service.ts';
 import { EmailService } from '../services/email.service.ts';
 import { HiggsfieldService } from '../services/higgsfield.service.ts';
+import { CostTrackingService } from '../services/cost-tracking.service.ts';
 
 export const apiRouter = Router();
 
@@ -362,12 +363,13 @@ apiRouter.post('/videos/higgsfield/status', async (req: Request, res: Response) 
 
 // ---------------- CREATIVE STUDIO & GENERATION ROUTES ----------------
 apiRouter.post('/creative/analyze', async (req: Request, res: Response) => {
+  const user = getAuthUser(req);
   const { requirement } = req.body;
   if (!requirement || typeof requirement !== 'string') {
     return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'Business requirement text is required' });
   }
 
-  const plan = await GeminiService.analyzeRequirement(requirement);
+  const plan = await GeminiService.analyzeRequirement(requirement, user.id);
   res.json({ success: true, plan });
 });
 
@@ -625,12 +627,13 @@ apiRouter.get('/assets/:id/download', (req: Request, res: Response) => {
 
 // ---------------- CHAT ASSISTANT ROUTES ----------------
 apiRouter.post('/chat', async (req: Request, res: Response) => {
+  const user = getAuthUser(req);
   const { message, history } = req.body;
   if (!message) {
     return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'Message is required' });
   }
 
-  const reply = await GeminiService.chatAssistant(message, history || []);
+  const reply = await GeminiService.chatAssistant(message, history || [], user.id);
   res.json({ success: true, reply });
 });
 
@@ -758,6 +761,11 @@ apiRouter.post('/admin/users/:id/credits', requireAdmin, (req: Request, res: Res
 
   const updated = CreditService.adminAdjust(targetUserId, amount, reason || 'Admin portal adjustment');
   res.json({ success: true, balance: updated });
+});
+
+apiRouter.get('/admin/provider-usage', requireAdmin, async (_req: Request, res: Response) => {
+  const report = await CostTrackingService.getAdminReport();
+  return res.json({ success: true, report });
 });
 
 apiRouter.get('/admin/audit-logs', requireAdmin, (_req: Request, res: Response) => {
