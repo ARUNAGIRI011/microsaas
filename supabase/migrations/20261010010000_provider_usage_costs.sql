@@ -4,6 +4,8 @@
 create table if not exists public.provider_usage_events (
   id uuid primary key default gen_random_uuid(),
   user_id text not null,
+  user_name text,
+  user_email text,
   provider text not null,
   model text not null,
   operation text not null,
@@ -17,6 +19,9 @@ create table if not exists public.provider_usage_events (
   pricing_source text,
   created_at timestamptz not null default now()
 );
+
+alter table public.provider_usage_events add column if not exists user_name text;
+alter table public.provider_usage_events add column if not exists user_email text;
 
 create index if not exists provider_usage_events_created_idx
   on public.provider_usage_events(created_at desc);
