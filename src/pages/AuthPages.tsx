@@ -100,7 +100,7 @@ export const LoginPage: React.FC = () => {
 };
 
 export const RegisterPage: React.FC = () => {
-  const { navigate, addToast, refreshUserData } = useApp();
+  const { navigate, addToast, refreshUserData, setAuthenticatedUser } = useApp();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [businessName, setBusinessName] = useState('');
