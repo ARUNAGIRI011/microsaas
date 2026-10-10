@@ -201,6 +201,15 @@ export class CostTrackingService {
       console.warn('Provider usage report using process-memory fallback:', error instanceof Error ? error.message : 'unknown error');
     }
 
+    // Never include historical telemetry emitted by removed demo/system fixtures.
+    // Real registered users are unaffected; unknown prices remain unpriced, not $0.
+    const fixtureIds = new Set(['usr-demo-001', 'usr-admin-001']);
+    const fixtureEmails = new Set(['demo@bizmate.ai', 'admin@bizmate.ai']);
+    rows = rows.filter(event =>
+      !fixtureIds.has(event.userId) &&
+      !fixtureEmails.has((event.userEmail || '').trim().toLowerCase())
+    );
+
     const sumCost = (events: ProviderUsageEvent[]) => events.reduce((sum, event) => sum + (event.costUsd ?? 0), 0);
     const byUserMap = new Map<string, ProviderUsageEvent[]>();
     const byProviderMap = new Map<string, ProviderUsageEvent[]>();
