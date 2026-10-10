@@ -266,13 +266,50 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
         : 'Poster generated with Gemini image generation. This model may require paid API billing.'
     });
   } catch (error: any) {
-    const message = error?.message || 'Could not generate the poster image.';
-    const status = message.includes('POSTER_PROVIDER_NOT_CONFIGURED') ? 503 : 502;
-    return res.status(status).json({
-      success: false,
-      errorCode: status === 503 ? 'POSTER_PROVIDER_NOT_CONFIGURED' : 'POSTER_GENERATION_FAILED',
-      error: message
-    });
+    // Always provide a no-inference-cost vector poster if a remote image provider
+    // is unconfigured, out of quota, or unavailable. This is clearly labelled in
+    // the response so the UI never presents the fallback as AI-generated imagery.
+    try {
+      const aspect = typeof aspectRatio === 'string' ? aspectRatio : '1:1';
+      const generated = await GeminiService.generateCreativeAsset(
+        'promotional_poster',
+        prompt.trim().slice(0, 6000),
+        { aspectRatio: aspect, language: 'English' }
+      );
+      const layout = generated.layoutConfig || {};
+      const svg = generatePosterSVG({
+        headline: String(layout.headline || generated.headlines?.[0] || 'SPECIAL ANNOUNCEMENT'),
+        subhead: String(layout.subhead || generated.headlines?.[1] || 'Discover something special'),
+        body: String(layout.body || generated.bodyCopy || prompt.trim().slice(0, 140)),
+        cta: String(layout.cta || generated.callToAction || 'CONTACT US TODAY'),
+        badgeText: String(layout.badgeText || 'SPECIAL OFFER'),
+        badgeColor: String(layout.badgeColor || '#F59E0B'),
+        backgroundColor: String(layout.backgroundColor || '#881337'),
+        textColor: String(layout.textColor || '#FFFBEB'),
+        accentColor: String(layout.accentColor || '#FBBF24'),
+        aspectRatio: aspect as any,
+        conceptStyle: layout.conceptStyle,
+        brandName: user.businessName,
+        logoUrl: typeof logoDataUrl === 'string' ? logoDataUrl : undefined,
+        productImageUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined
+      });
+      return res.json({
+        success: true,
+        status: 'completed',
+        provider: 'bizmate-svg-fallback',
+        model: 'editable-svg',
+        outputUrl: `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`,
+        fallbackUsed: true,
+        message: 'Remote image generation was unavailable or not configured. A no-inference-cost SVG poster was generated instead; exact logos and text remain editable in the SVG poster workflow.'
+      });
+    } catch (fallbackError: any) {
+      const message = error?.message || fallbackError?.message || 'Could not generate the poster image.';
+      return res.status(502).json({
+        success: false,
+        errorCode: 'POSTER_GENERATION_FAILED',
+        error: message
+      });
+    }
   }
 });
 
