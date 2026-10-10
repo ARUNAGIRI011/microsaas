@@ -14,6 +14,7 @@ import { SecurityTestService } from '../services/security-test.service.ts';
 import { PlanId } from '../types/index.ts';
 import { generatePosterSVG } from '../../lib/svg-generator.ts';
 import { SupabaseAuthService } from '../services/supabase-auth.service.ts';
+import { EmailService } from '../services/email.service.ts';
 
 export const apiRouter = Router();
 
@@ -37,7 +38,9 @@ apiRouter.post('/auth/supabase/register', async (req: Request, res: Response) =>
   }
   try {
     const result = await SupabaseAuthService.register({ email, password, name, businessName, industry });
-    return res.status(201).json({ success: true, ...result });
+    // Email delivery is best-effort: an email-provider outage must not prevent account registration.
+    const welcomeEmail = await EmailService.sendWelcomeEmail({ to: email, name });
+    return res.status(201).json({ success: true, ...result, welcomeEmailSent: welcomeEmail.sent });
   } catch (error: any) {
     const message = error?.message || 'Registration failed';
     const status = /already registered|already exists/i.test(message) ? 409 : 400;
