@@ -18,6 +18,14 @@ export class IntegrationsService {
     const isYouTubeSet = Boolean(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET);
     const isSheetsSet = Boolean(process.env.GOOGLE_SHEETS_SPREADSHEET_ID && process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
     const isHiggsfieldSet = Boolean(process.env.MUAPI_API_KEY?.trim());
+    const posterProvider = (process.env.POSTER_IMAGE_PROVIDER || 'huggingface').trim().toLowerCase();
+    const isPosterProviderSet = posterProvider === 'huggingface'
+      ? Boolean(process.env.HF_TOKEN?.trim())
+      : posterProvider === 'gemini'
+        ? isGeminiSet
+        : posterProvider === 'muapi'
+          ? isHiggsfieldSet
+          : false;
 
     return [
       {
@@ -82,6 +90,25 @@ export class IntegrationsService {
         details: isSheetsSet
           ? 'Service Account authenticated. Weekly marketing ledger sync enabled.'
           : 'Google Sheets dataset generator active with instant CSV export and multi-tab ledger reconciliation.'
+      },
+      {
+        name: 'AI Poster Image Provider',
+        category: 'AI_PROVIDER',
+        configured: isPosterProviderSet,
+        statusText: isPosterProviderSet ? 'CONFIGURED / NOT LIVE-TESTED' : 'NOT CONFIGURED / NOT TESTED',
+        details: posterProvider === 'huggingface'
+          ? isPosterProviderSet
+            ? 'Hugging Face FLUX image generation is configured. Monthly free credit is limited; no paid-provider fallback is automatic.'
+            : 'Default provider is Hugging Face. Set HF_TOKEN with Inference Providers permission; the free credit is small and limited.'
+          : posterProvider === 'gemini'
+            ? isPosterProviderSet
+              ? 'Gemini image generation is configured. Check current image model pricing; image generation is not included in the standard free API tier.'
+              : 'Set GEMINI_API_KEY and explicitly choose POSTER_IMAGE_PROVIDER=gemini; image generation may be billed.'
+            : posterProvider === 'muapi'
+              ? isPosterProviderSet
+                ? 'MuAPI poster generation is configured and may incur provider charges.'
+                : 'Set MUAPI_API_KEY to enable the explicitly selected MuAPI poster provider.'
+              : 'Unknown POSTER_IMAGE_PROVIDER. Choose huggingface, gemini, or muapi.'
       },
       {
         name: 'Open-Higgsfield AI (MuAPI)',
