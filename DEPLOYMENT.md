@@ -56,6 +56,19 @@ To configure on Vercel, add the needed variables separately to Preview and Produ
 
 Reference: [Hugging Face image generation and inference providers](https://huggingface.co/docs/inference-providers/guides/first-api-call), [Hugging Face pricing](https://huggingface.co/docs/inference-providers/pricing), [Gemini image generation](https://ai.google.dev/gemini-api/docs/image-generation), [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing), and [Open-Higgsfield-AI](https://github.com/Autom8AI/Open-Higgsfield-AI).
 
+### 7. Configure per-user LLM and API cost telemetry
+The admin portal includes an **LLM & API Spend by User** report with per-user and per-provider/model totals, provider-reported Gemini input/output token counts, recent request events, failed calls, and an explicit count of calls without a configured price. Costs are displayed in USD as estimates, not invoices.
+
+For durable records:
+1. Apply `supabase/migrations/20261010010000_provider_usage_costs.sql` to the configured Supabase project.
+2. Set `SUPABASE_URL` and the server-only `SUPABASE_SERVICE_ROLE_KEY` in Vercel. Never expose the service-role key to the browser.
+3. Configure current provider prices in Vercel environment variables:
+   - `GEMINI_INPUT_USD_PER_MILLION_TOKENS` and `GEMINI_OUTPUT_USD_PER_MILLION_TOKENS` — USD per million Gemini text tokens.
+   - `GEMINI_IMAGE_COST_USD`, `HF_IMAGE_COST_USD`, `MUAPI_POSTER_COST_USD`, and `MUAPI_VIDEO_COST_USD` — estimated USD per request for the selected image/video provider.
+4. Leave a rate blank if you do not know it. Such calls are shown as **Unpriced** instead of being incorrectly reported as free. Confirm current rates from [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing), [Hugging Face Inference Providers pricing](https://huggingface.co/docs/inference-providers/pricing), and the MuAPI billing/model page.
+
+The telemetry stores user ID, provider/model, operation, token counts, outcome, duration, configured estimated cost and pricing source. It deliberately does not store prompts or API keys. When Supabase service-role persistence is not configured, records exist only in process memory and can be lost during serverless restarts. External provider billing dashboards remain the source of truth for actual charges and credits.
+
 ### 7. Run the pipeline
 
 Push a reviewed commit to `main`, or manually run the workflow on `main`:
