@@ -62,7 +62,7 @@ export class GeminiService {
    */
   public static async analyzeRequirement(requirement: string, userId = 'unknown'): Promise<CreativePlan> {
     if (!this.isConfigured()) {
-      return this.fallbackCreativePlan(requirement);
+      throw new Error('GEMINI_NOT_CONFIGURED: Add GEMINI_API_KEY to enable live AI campaign analysis. No simulated output was generated.');
     }
 
     const startedAt = Date.now();
@@ -108,8 +108,8 @@ Respond strictly with valid JSON conforming to this structure:
           status: 'failed', durationMs: Date.now() - startedAt
         });
       }
-      console.warn('Gemini analyzeRequirement failed, falling back to heuristic plan:', error);
-      return this.fallbackCreativePlan(requirement);
+      console.warn('Gemini analyzeRequirement failed:', error);
+      throw error;
     }
   }
 
@@ -129,7 +129,7 @@ Respond strictly with valid JSON conforming to this structure:
     userId = 'unknown'
   ): Promise<GenerationOutput['content']> {
     if (!this.isConfigured()) {
-      return this.fallbackAssetGeneration(type, requirement, options);
+      throw new Error('GEMINI_NOT_CONFIGURED: Add GEMINI_API_KEY to enable live AI creative generation. No simulated output was generated.');
     }
 
     const startedAt = Date.now();
@@ -297,8 +297,8 @@ Return JSON:
           status: 'failed', durationMs: Date.now() - startedAt
         });
       }
-      console.warn('Gemini generateCreativeAsset error, falling back:', err);
-      return this.fallbackAssetGeneration(type, requirement, options);
+      console.warn('Gemini generateCreativeAsset failed:', err);
+      throw err;
     }
   }
 
@@ -307,7 +307,7 @@ Return JSON:
    */
   public static async chatAssistant(message: string, history: Array<{ role: 'user' | 'model'; text: string }>, userId = 'unknown'): Promise<string> {
     if (!this.isConfigured()) {
-      return `BizMate AI Assistant (Offline Simulation Mode): I can help you craft high-converting campaigns! For "${message}", I recommend pairing a 1:1 Instagram poster with an urgent WhatsApp broadcast copy. Upgrade or configure GEMINI_API_KEY for live streaming generation.`;
+      throw new Error('GEMINI_NOT_CONFIGURED: Add GEMINI_API_KEY to enable the live AI assistant. No simulated reply was generated.');
     }
 
     const startedAt = Date.now();
@@ -344,7 +344,7 @@ Keep replies structured, concise, and focused on business ROI. If the user asks 
         userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: 'chat-assistant',
         status: 'failed', durationMs: Date.now() - startedAt
       });
-      return `BizMate Assistant: Could not reach AI service (${err?.message || 'Network error'}). Please try again or check your API key configuration.`;
+      throw err;
     }
   }
 
