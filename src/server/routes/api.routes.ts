@@ -551,13 +551,13 @@ apiRouter.get('/plans', (_req: Request, res: Response) => {
 
 apiRouter.post('/payments/create-order', async (req: Request, res: Response) => {
   const user = getAuthUser(req);
-  const { planId } = req.body;
-  if (!planId || !PLANS[planId as PlanId]) {
+  const { planId, billingInterval = 'month' } = req.body;
+  if (!planId || !PLANS[planId as PlanId] || !['month', 'year'].includes(billingInterval)) {
     return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'Valid planId is required' });
   }
 
   try {
-    const orderData = await PaymentService.createOrder(user.id, planId as PlanId);
+    const orderData = await PaymentService.createOrder(user.id, planId as PlanId, billingInterval as 'month' | 'year');
     res.json({ success: true, order: orderData });
   } catch (err: any) {
     res.status(503).json({ success: false, errorCode: 'PAYMENT_PROVIDER_UNAVAILABLE', error: err.message });
