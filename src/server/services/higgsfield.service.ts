@@ -84,7 +84,7 @@ export class HiggsfieldService {
     const logoUrl = input.logoDataUrl
       ? await uploadReferenceImage(input.logoDataUrl, key)
       : undefined;
-    const model = imageUrl && logoUrl ? MODEL_REFERENCE : imageUrl ? MODEL_IMAGE : MODEL_TEXT;
+    const model = imageUrl && logoUrl ? MODEL_REFERENCE : imageUrl ? MODEL_IMAGE : logoUrl ? MODEL_REFERENCE : MODEL_TEXT;
     const body: Record<string, unknown> = {
       prompt: `${input.prompt}\nCreate a natural, creator-style UGC advertisement. Language for any spoken dialogue or on-screen wording: ${input.language}. Keep the product appearance realistic; do not invent prices, guarantees, contact details, or claims.`,
       duration,
@@ -95,6 +95,7 @@ export class HiggsfieldService {
     };
     if (imageUrl && logoUrl) body.image_urls = [imageUrl, logoUrl];
     else if (imageUrl) body.image_url = imageUrl;
+    else if (logoUrl) body.image_urls = [logoUrl];
 
     const response = await fetch(`${API_BASE}/${model}`, {
       method: 'POST',
