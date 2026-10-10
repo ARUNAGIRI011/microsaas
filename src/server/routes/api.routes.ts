@@ -549,7 +549,7 @@ apiRouter.get('/plans', (_req: Request, res: Response) => {
   res.json({ success: true, plans: Object.values(PLANS) });
 });
 
-apiRouter.post('/payments/create-order', (req: Request, res: Response) => {
+apiRouter.post('/payments/create-order', async (req: Request, res: Response) => {
   const user = getAuthUser(req);
   const { planId } = req.body;
   if (!planId || !PLANS[planId as PlanId]) {
@@ -557,10 +557,10 @@ apiRouter.post('/payments/create-order', (req: Request, res: Response) => {
   }
 
   try {
-    const orderData = PaymentService.createOrder(user.id, planId as PlanId);
+    const orderData = await PaymentService.createOrder(user.id, planId as PlanId);
     res.json({ success: true, order: orderData });
   } catch (err: any) {
-    res.status(500).json({ success: false, errorCode: 'INTERNAL_ERROR', error: err.message });
+    res.status(503).json({ success: false, errorCode: 'PAYMENT_PROVIDER_UNAVAILABLE', error: err.message });
   }
 });
 
