@@ -5,6 +5,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { GenerationType, GenerationOutput, ConceptStyle } from '../types/index.ts';
+import { CostTrackingService } from './cost-tracking.service.ts';
 
 const apiKey = process.env.GEMINI_API_KEY || '';
 
@@ -59,11 +60,12 @@ export class GeminiService {
   /**
    * Interprets a raw business requirement and produces a strategic creative campaign plan
    */
-  public static async analyzeRequirement(requirement: string): Promise<CreativePlan> {
+  public static async analyzeRequirement(requirement: string, userId = 'unknown'): Promise<CreativePlan> {
     if (!this.isConfigured()) {
       return this.fallbackCreativePlan(requirement);
     }
 
+    const startedAt = Date.now();
     try {
       const prompt = `You are a world-class CMO and senior marketing strategist at BizMate AI.
 Analyze the following business requirement and extract a comprehensive marketing campaign plan:
@@ -89,6 +91,12 @@ Respond strictly with valid JSON conforming to this structure:
         }
       });
 
+      const usage = (response as any).usageMetadata || {};
+      await CostTrackingService.record({
+        userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: 'analyze-requirement',
+        status: 'succeeded', inputTokens: usage.promptTokenCount, outputTokens: usage.candidatesTokenCount,
+        totalTokens: usage.totalTokenCount, durationMs: Date.now() - startedAt
+      });
       const text = response.text || '';
       return JSON.parse(text);
     } catch (error) {
@@ -109,12 +117,14 @@ Respond strictly with valid JSON conforming to this structure:
       language?: string;
       brandColors?: string[];
       offerText?: string;
-    }
+    },
+    userId = 'unknown'
   ): Promise<GenerationOutput['content']> {
     if (!this.isConfigured()) {
       return this.fallbackAssetGeneration(type, requirement, options);
     }
 
+    const startedAt = Date.now();
     try {
       let promptInstruction = '';
       if (type === 'marketing_copy' || type === 'whatsapp_creative' || type === 'email_content') {
@@ -230,6 +240,12 @@ Return JSON:
         }
       });
 
+      const usage = (response as any).usageMetadata || {};
+      await CostTrackingService.record({
+        userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: `generate-creative-${type}`,
+        status: 'succeeded', inputTokens: usage.promptTokenCount, outputTokens: usage.candidatesTokenCount,
+        totalTokens: usage.totalTokenCount, durationMs: Date.now() - startedAt
+      });
       const text = response.text || '';
       const parsed = JSON.parse(text);
 
@@ -273,11 +289,12 @@ Return JSON:
   /**
    * Interactive Chat Assistant for Business & Marketing Guidance
    */
-  public static async chatAssistant(message: string, history: Array<{ role: 'user' | 'model'; text: string }>): Promise<string> {
+  public static async chatAssistant(message: string, history: Array<{ role: 'user' | 'model'; text: string }>, userId = 'unknown'): Promise<string> {
     if (!this.isConfigured()) {
       return `BizMate AI Assistant (Offline Simulation Mode): I can help you craft high-converting campaigns! For "${message}", I recommend pairing a 1:1 Instagram poster with an urgent WhatsApp broadcast copy. Upgrade or configure GEMINI_API_KEY for live streaming generation.`;
     }
 
+    const startedAt = Date.now();
     try {
       const contents = history.map((h) => ({
         role: h.role,
@@ -299,6 +316,12 @@ Keep replies structured, concise, and focused on business ROI. If the user asks 
         }
       });
 
+      const usage = (response as any).usageMetadata || {};
+      await CostTrackingService.record({
+        userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: 'chat-assistant',
+        status: 'succeeded', inputTokens: usage.promptTokenCount, outputTokens: usage.candidatesTokenCount,
+        totalTokens: usage.totalTokenCount, durationMs: Date.now() - startedAt
+      });
       return response.text || 'I am ready to help optimize your business marketing strategy.';
     } catch (err: any) {
       return `BizMate Assistant: Could not reach AI service (${err?.message || 'Network error'}). Please try again or check your API key configuration.`;
