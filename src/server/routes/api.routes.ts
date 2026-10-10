@@ -276,7 +276,7 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
         prompt.trim().slice(0, 6000),
         { aspectRatio: aspect, language: 'English' }
       );
-      const layout = generated.layoutConfig || {};
+      const layout = (generated.layoutConfig || {}) as Record<string, string | undefined>;
       const svg = generatePosterSVG({
         headline: String(layout.headline || generated.headlines?.[0] || 'SPECIAL ANNOUNCEMENT'),
         subhead: String(layout.subhead || generated.headlines?.[1] || 'Discover something special'),
@@ -288,7 +288,6 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
         textColor: String(layout.textColor || '#FFFBEB'),
         accentColor: String(layout.accentColor || '#FBBF24'),
         aspectRatio: aspect as any,
-        conceptStyle: layout.conceptStyle,
         brandName: user.businessName,
         logoUrl: typeof logoDataUrl === 'string' ? logoDataUrl : undefined,
         productImageUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined
