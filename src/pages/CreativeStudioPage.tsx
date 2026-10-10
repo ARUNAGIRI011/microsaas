@@ -269,6 +269,7 @@ export const CreativeStudioPage: React.FC = () => {
           headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id || '' },
           body: JSON.stringify({
             prompt: businessContext,
+            language: selectedLanguage,
             logoDataUrl: logoUrl || undefined,
             productImageDataUrl: productImageUrl || undefined,
             aspectRatio: selectedType === 'youtube_thumbnail' ? '16:9' : aspectRatio === '4:5' ? '4:5' : '1:1'
