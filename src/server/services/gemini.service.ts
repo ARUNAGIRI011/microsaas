@@ -135,6 +135,7 @@ Return JSON:
       } else if (type === 'promotional_poster' || type === 'instagram_creative' || type === 'facebook_creative' || type === 'youtube_thumbnail') {
         promptInstruction = `Design a visually striking poster / thumbnail layout configuration for: "${requirement}".
 Aspect Ratio: ${options.aspectRatio || '1:1'}. Tone: ${options.tone || 'festive'}. Offer: ${options.offerText || 'Exclusive Deal'}.
+Language: ${options.language || 'English'}. All visible poster/thumbnail copy must be in this language. Preserve business names, addresses, phone numbers and URLs exactly.
 Provide aesthetic color schemes and copy elements.
 Return JSON:
 {
@@ -151,7 +152,7 @@ Return JSON:
 }`;
       } else if (type === 'promotional_video') {
         promptInstruction = `Write a commercial promo video script and scene-by-scene storyboard for: "${requirement}".
-Total duration ~30 seconds.
+Total duration ~30 seconds. Write all spoken voiceover and on-screen text in ${options.language || 'English'}. Preserve business names, addresses, phone numbers and URLs exactly.
 Return JSON:
 {
   "videoScript": {
