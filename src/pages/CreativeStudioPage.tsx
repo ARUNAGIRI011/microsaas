@@ -809,7 +809,7 @@ export const CreativeStudioPage: React.FC = () => {
             {generating ? (
               <>
                 <div className="w-4 h-4 border-2 border-neutral-950 border-t-transparent rounded-full animate-spin" />
-                <span>Running Gemini Model Engine...</span>
+                <span>{selectedType === 'promotional_video' ? 'Submitting UGC video...' : 'Running Gemini Model Engine...'}</span>
               </>
             ) : (
               <>
