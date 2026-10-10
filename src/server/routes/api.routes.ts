@@ -361,6 +361,11 @@ apiRouter.post('/videos/higgsfield/generate', async (req: Request, res: Response
     await CostTrackingService.record({ userId: user.id, provider: 'muapi', model: result.model, operation: 'ugc-video-generation', status: 'succeeded' });
     return res.status(202).json({ success: true, ...result, message: 'Video job submitted to Open-Higgsfield. Poll status until completed.' });
   } catch (error: any) {
+    await CostTrackingService.record({
+      userId: user.id, provider: 'muapi',
+      model: process.env.MUAPI_VIDEO_MODEL || 'seedance-v2.0-t2v',
+      operation: 'ugc-video-generation', status: 'failed'
+    });
     const message = error?.message || 'Could not submit the video job.';
     return res.status(502).json({ success: false, errorCode: 'OPEN_HIGGSFIELD_REQUEST_FAILED', error: message });
   }
