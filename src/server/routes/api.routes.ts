@@ -239,7 +239,7 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
     return res.status(413).json({ success: false, errorCode: 'UPLOAD_TOO_LARGE', error: 'Each reference image must be 1.2 MB or smaller.' });
   }
   if (!HiggsfieldService.isConfigured()) {
-    return res.status(503).json({ success: false, errorCode: 'OPEN_HIGGSFIELD_NOT_CONFIGURED', error: 'Add MUAPI_API_KEY to the server environment to enable Open-Higgsfield image generation.' });
+    return res.status(503).json({ success: false, errorCode: 'OPEN_OPEN_HIGGSFIELD_NOT_CONFIGURED', error: 'Add MUAPI_API_KEY to the server environment to enable Open-Higgsfield image generation.' });
   }
   try {
     const result = await HiggsfieldService.submitPoster({
@@ -251,11 +251,11 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
     });
     return res.status(202).json({ success: true, ...result, message: 'Poster image job submitted. Poll status until completed.' });
   } catch (error: any) {
-    return res.status(502).json({ success: false, errorCode: 'OPEN_HIGGSFIELD_REQUEST_FAILED', error: error?.message || 'Could not submit poster generation.' });
+    return res.status(502).json({ success: false, errorCode: 'OPEN_OPEN_HIGGSFIELD_REQUEST_FAILED', error: error?.message || 'Could not submit poster generation.' });
   }
 });
 
-// ---------------- HIGGSFIELD UGC VIDEO GENERATION ----------------
+// ---------------- OPEN-HIGGSFIELD UGC VIDEO GENERATION ----------------
 apiRouter.post('/videos/higgsfield/generate', async (req: Request, res: Response) => {
   const user = getAuthUser(req);
   const { prompt, productImageDataUrl, language, aspectRatio, duration } = req.body ?? {};
@@ -268,7 +268,7 @@ apiRouter.post('/videos/higgsfield/generate', async (req: Request, res: Response
     return res.status(413).json({ success: false, errorCode: 'UPLOAD_TOO_LARGE', error: 'Each video reference image must be 1.2 MB or smaller.' });
   }
   if (!HiggsfieldService.isConfigured()) {
-    return res.status(503).json({ success: false, errorCode: 'HIGGSFIELD_NOT_CONFIGURED', error: 'UGC video generation is not configured. Add HIGGSFIELD_API_KEY to the server environment.' });
+    return res.status(503).json({ success: false, errorCode: 'OPEN_HIGGSFIELD_NOT_CONFIGURED', error: 'UGC video generation is not configured. Add MUAPI_API_KEY to the server environment.' });
   }
   try {
     const result = await HiggsfieldService.submitUGCVideo({
@@ -280,10 +280,10 @@ apiRouter.post('/videos/higgsfield/generate', async (req: Request, res: Response
       aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '9:16',
       duration: Number(duration) || 5
     });
-    return res.status(202).json({ success: true, ...result, message: 'Video job submitted to Higgsfield. Poll status until completed.' });
+    return res.status(202).json({ success: true, ...result, message: 'Video job submitted to Open-Higgsfield. Poll status until completed.' });
   } catch (error: any) {
     const message = error?.message || 'Could not submit the video job.';
-    return res.status(502).json({ success: false, errorCode: 'HIGGSFIELD_REQUEST_FAILED', error: message });
+    return res.status(502).json({ success: false, errorCode: 'OPEN_HIGGSFIELD_REQUEST_FAILED', error: message });
   }
 });
 
@@ -299,7 +299,7 @@ apiRouter.post('/videos/higgsfield/status', async (req: Request, res: Response) 
   } catch (error: any) {
     const message = error?.message || 'Could not check the video job.';
     const status = message === 'VIDEO_REQUEST_NOT_FOUND' ? 404 : 502;
-    return res.status(status).json({ success: false, errorCode: 'HIGGSFIELD_STATUS_FAILED', error: status === 404 ? 'Video job was not found for this session.' : message });
+    return res.status(status).json({ success: false, errorCode: 'OPEN_HIGGSFIELD_STATUS_FAILED', error: status === 404 ? 'Video job was not found for this session.' : message });
   }
 });
 
