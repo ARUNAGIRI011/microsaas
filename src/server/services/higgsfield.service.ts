@@ -1,19 +1,34 @@
+/**
+ * Open-Higgsfield-compatible generation adapter for BizMate AI.
+ *
+ * The upstream Open-Higgsfield-AI project is a UI and model catalogue; actual
+ * inference in that project is performed by MuAPI. Keep its API key server-side.
+ * API documentation: https://github.com/Autom8AI/Open-Higgsfield-AI
+ */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 
-const API_BASE = 'https://api.higgsfield.ai';
-const MODEL_TEXT = 'bytedance/seedance-2.5/text-to-video';
-const MODEL_IMAGE = 'bytedance/seedance-2.5/image-to-video';
-const MODEL_REFERENCE = 'bytedance/seedance-2.5/reference-to-video';
+const API_BASE = 'https://api.muapi.ai/api/v1';
+const IMAGE_MODEL = 'flux-dev-image';
+const VIDEO_T2V_MODEL = 'seedance-v2.0-t2v';
+const VIDEO_I2V_MODEL = 'seedance-v2.0-i2v';
+
+type ProviderResponse = {
+  request_id?: string;
+  id?: string;
+  status?: string;
+  error?: string;
+  detail?: string;
+  message?: string;
+  outputs?: string[];
+  url?: string;
+  output?: { url?: string };
+};
 
 function getApiKey(): string {
-  const key = process.env.HIGGSFIELD_API_KEY?.trim();
-  if (!key) throw new Error('HIGGSFIELD_NOT_CONFIGURED');
+  const key = process.env.MUAPI_API_KEY?.trim();
+  if (!key) throw new Error('OPEN_HIGGSFIELD_NOT_CONFIGURED');
   return key;
-}
-
-function authHeaders(key: string): Record<string, string> {
-  return { Authorization: `Key ${key}`, 'Content-Type': 'application/json' };
 }
 
 function signRequest(requestId: string, userId: string, key: string): string {
@@ -26,43 +41,47 @@ function verifyRequestToken(requestId: string, userId: string, token: string, ke
   return expected.length === supplied.length && timingSafeEqual(expected, supplied);
 }
 
-async function uploadReferenceImage(dataUrl: string, key: string): Promise<string | undefined> {
-  const match = dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
-  if (!match) return undefined; // Sample SVGs and unsupported formats fall back to text-to-video.
-  const mimeType = match[1];
-  const bytes = Buffer.from(match[2], 'base64');
-  if (!bytes.length || bytes.length > 5 * 1024 * 1024) {
-    throw new Error('Reference image must be smaller than 5 MB.');
-  }
-
-  const uploadResponse = await fetch(`${API_BASE}/files/generate-upload-url`, {
+async function postJson(endpoint: string, payload: Record<string, unknown>, key: string): Promise<ProviderResponse> {
+  const response = await fetch(`${API_BASE}/${endpoint}`, {
     method: 'POST',
-    headers: authHeaders(key),
-    body: JSON.stringify({ content_type: mimeType })
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key },
+    body: JSON.stringify(payload)
   });
-  const uploadData = await uploadResponse.json() as {
-    upload_url?: string;
-    upload_headers?: Record<string, string>;
-    public_url?: string;
-    message?: string;
-  };
-  if (!uploadResponse.ok || !uploadData.upload_url || !uploadData.public_url) {
-    throw new Error(uploadData.message || 'Higgsfield did not provide a reference upload URL.');
+  const data = await response.json() as ProviderResponse;
+  if (!response.ok) {
+    throw new Error(data.detail || data.message || data.error || `MuAPI request failed (HTTP ${response.status}).`);
   }
+  return data;
+}
 
-  const uploadBlob = new Blob([Uint8Array.from(bytes).buffer as ArrayBuffer], { type: mimeType });
-  const putResponse = await fetch(uploadData.upload_url, {
-    method: 'PUT',
-    headers: uploadData.upload_headers || { 'Content-Type': mimeType },
-    body: uploadBlob
+async function uploadReference(dataUrl: string, key: string): Promise<string | undefined> {
+  const match = dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return undefined;
+  const mime = match[1];
+  const bytes = Buffer.from(match[2], 'base64');
+  if (!bytes.length || bytes.length > 1.2 * 1024 * 1024) throw new Error('Each reference image must be 1.2 MB or smaller.');
+  const form = new FormData();
+  form.append('file', new Blob([Uint8Array.from(bytes).buffer as ArrayBuffer], { type: mime }), `reference.${mime.split('/')[1]}`);
+  const response = await fetch(`${API_BASE}/upload_file`, {
+    method: 'POST',
+    headers: { 'x-api-key': key },
+    body: form
   });
-  if (!putResponse.ok) throw new Error('Could not upload the product reference image to the video provider.');
-  return uploadData.public_url;
+  const result = await response.json() as { url?: string; file_url?: string; data?: { url?: string }; detail?: string };
+  if (!response.ok) throw new Error(result.detail || `MuAPI upload failed (HTTP ${response.status}).`);
+  const url = result.url || result.file_url || result.data?.url;
+  if (!url) throw new Error('MuAPI did not return a hosted image URL.');
+  return url;
+}
+
+function readOutput(data: ProviderResponse): string | undefined {
+  return data.outputs?.[0] || data.url || data.output?.url;
 }
 
 export class HiggsfieldService {
+  // Keep this exported class name temporarily to avoid breaking existing imports.
   static isConfigured(): boolean {
-    return Boolean(process.env.HIGGSFIELD_API_KEY?.trim());
+    return Boolean(process.env.MUAPI_API_KEY?.trim());
   }
 
   static async submitUGCVideo(input: {
@@ -75,43 +94,40 @@ export class HiggsfieldService {
     duration?: number;
   }): Promise<{ requestId: string; requestToken: string; status: string; model: string }> {
     const key = getApiKey();
-    const duration = Math.max(4, Math.min(30, Math.round(input.duration || 5)));
-    const ratioAllowList = ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'];
-    const aspectRatio = ratioAllowList.includes(input.aspectRatio || '') ? input.aspectRatio! : '9:16';
-    const imageUrl = input.productImageDataUrl
-      ? await uploadReferenceImage(input.productImageDataUrl, key)
-      : undefined;
-    const logoUrl = input.logoDataUrl
-      ? await uploadReferenceImage(input.logoDataUrl, key)
-      : undefined;
-    const model = imageUrl && logoUrl ? MODEL_REFERENCE : imageUrl ? MODEL_IMAGE : logoUrl ? MODEL_REFERENCE : MODEL_TEXT;
-    const body: Record<string, unknown> = {
-      prompt: `${input.prompt}\nCreate a natural, creator-style UGC advertisement. Language for any spoken dialogue or on-screen wording: ${input.language}. Keep the product appearance realistic; do not invent prices, guarantees, contact details, or claims.`,
-      duration,
-      resolution: '720p',
-      aspect_ratio: aspectRatio,
-      output_format: 'mp4',
-      generate_audio: true
-    };
-    if (imageUrl && logoUrl) body.image_urls = [imageUrl, logoUrl];
-    else if (imageUrl) body.image_url = imageUrl;
-    else if (logoUrl) body.image_urls = [logoUrl];
+    const productUrl = input.productImageDataUrl ? await uploadReference(input.productImageDataUrl, key) : undefined;
+    const logoUrl = input.logoDataUrl ? await uploadReference(input.logoDataUrl, key) : undefined;
+    const imageUrls = [productUrl, logoUrl].filter((url): url is string => Boolean(url));
+    const model = imageUrls.length ? VIDEO_I2V_MODEL : VIDEO_T2V_MODEL;
+    const aspectRatio = ['16:9', '9:16', '4:3', '3:4'].includes(input.aspectRatio || '') ? input.aspectRatio! : '9:16';
+    const duration = [5, 10, 15].includes(Number(input.duration)) ? Number(input.duration) : 5;
+    const prompt = `${input.prompt}\nCreate a natural creator-style UGC advertisement. Spoken dialogue and any visible text must use ${input.language}. Preserve the uploaded product and brand; do not invent prices, addresses, phone numbers, guarantees, or claims.`;
+    const payload: Record<string, unknown> = { prompt, aspect_ratio: aspectRatio, duration, quality: 'basic' };
+    if (imageUrls.length) payload.images_list = imageUrls;
+    const data = await postJson(model, payload, key);
+    const requestId = data.request_id || data.id;
+    if (!requestId) throw new Error('MuAPI did not return a video request ID.');
+    return { requestId, requestToken: signRequest(requestId, input.userId, key), status: data.status || 'processing', model };
+  }
 
-    const response = await fetch(`${API_BASE}/${model}`, {
-      method: 'POST',
-      headers: authHeaders(key),
-      body: JSON.stringify(body)
-    });
-    const data = await response.json() as { request_id?: string; status?: string; message?: string; error?: string };
-    if (!response.ok || !data.request_id) {
-      throw new Error(data.message || data.error || `Higgsfield request failed (HTTP ${response.status}).`);
-    }
-    return {
-      requestId: data.request_id,
-      requestToken: signRequest(data.request_id, input.userId, key),
-      status: data.status || 'queued',
-      model
-    };
+  static async submitPoster(input: {
+    userId: string;
+    prompt: string;
+    logoDataUrl?: string;
+    productImageDataUrl?: string;
+    aspectRatio?: string;
+  }): Promise<{ requestId: string; requestToken: string; status: string; model: string }> {
+    const key = getApiKey();
+    const productUrl = input.productImageDataUrl ? await uploadReference(input.productImageDataUrl, key) : undefined;
+    const logoUrl = input.logoDataUrl ? await uploadReference(input.logoDataUrl, key) : undefined;
+    const refs = [productUrl, logoUrl].filter((url): url is string => Boolean(url));
+    const aspectRatio = ['1:1', '16:9', '9:16', '4:5', '3:4', '4:3'].includes(input.aspectRatio || '') ? input.aspectRatio! : '1:1';
+    const prompt = `${input.prompt}\nCreate a polished, ready-to-publish small-business advertisement poster. Layout: ${aspectRatio}. Leave clear safe space for brand identity and readable copy. Use exact business details supplied in the prompt. Do not fabricate prices, phone numbers, addresses or claims. Keep logo/product appearance faithful to the references.`;
+    const payload: Record<string, unknown> = { prompt, aspect_ratio: aspectRatio };
+    if (refs.length) payload.image_url = refs[0];
+    const data = await postJson(IMAGE_MODEL, payload, key);
+    const requestId = data.request_id || data.id;
+    if (!requestId) throw new Error('MuAPI did not return an image request ID.');
+    return { requestId, requestToken: signRequest(requestId, input.userId, key), status: data.status || 'processing', model: IMAGE_MODEL };
   }
 
   static async getStatus(requestId: string, requestToken: string, userId: string): Promise<Record<string, unknown>> {
@@ -119,16 +135,13 @@ export class HiggsfieldService {
     if (!/^[A-Za-z0-9_-]{8,200}$/.test(requestId) || !verifyRequestToken(requestId, userId, requestToken, key)) {
       throw new Error('VIDEO_REQUEST_NOT_FOUND');
     }
-    const response = await fetch(`${API_BASE}/requests/${encodeURIComponent(requestId)}/status`, {
+    const response = await fetch(`${API_BASE}/predictions/${encodeURIComponent(requestId)}/result`, {
       method: 'GET',
-      headers: { Authorization: `Key ${key}` }
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key }
     });
-    const data = await response.json() as Record<string, any>;
-    if (!response.ok) throw new Error(data.message || `Higgsfield status check failed (HTTP ${response.status}).`);
+    const data = await response.json() as ProviderResponse;
+    if (!response.ok) throw new Error(data.detail || data.message || `MuAPI status check failed (HTTP ${response.status}).`);
     const status = String(data.status || 'processing').toLowerCase();
-    const videoUrl = typeof data.video?.url === 'string' ? data.video.url
-      : typeof data.video_url === 'string' ? data.video_url
-      : undefined;
-    return { requestId, status, videoUrl, error: status === 'failed' ? (data.error || data.message || 'Video generation failed.') : undefined };
+    return { requestId, status, outputUrl: readOutput(data), videoUrl: readOutput(data), error: status === 'failed' || status === 'error' ? (data.error || data.detail || 'Generation failed.') : undefined };
   }
 }
