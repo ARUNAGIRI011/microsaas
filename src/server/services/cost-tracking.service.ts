@@ -95,7 +95,9 @@ export class CostTrackingService {
       ? inputTokens + outputTokens
       : finiteNonNegative(input.totalTokens);
     const estimate = input.costUsd === undefined
-      ? configuredUsdCost(input.provider, input.operation, inputTokens, outputTokens)
+      ? input.status === 'failed'
+        ? { costUsd: null, pricingSource: null }
+        : configuredUsdCost(input.provider, input.operation, inputTokens, outputTokens)
       : { costUsd: input.costUsd, pricingSource: input.pricingSource || 'explicit-provider-estimate' };
     const costUsd = estimate.costUsd !== null && estimate.costUsd !== undefined
       && Number.isFinite(estimate.costUsd) && estimate.costUsd >= 0
