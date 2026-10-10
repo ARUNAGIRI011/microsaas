@@ -95,7 +95,6 @@ export const PricingPage: React.FC = () => {
         addToast(response?.error?.description || 'Payment was not completed. You have not been charged for an unsuccessful payment.', 'error');
       });
       checkout.open();
-      setProcessingPayment(false);
     } catch (error: any) {
       setProcessingPayment(false);
       addToast(error?.message || 'Unable to start Razorpay checkout.', 'error');
@@ -103,7 +102,7 @@ export const PricingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen premium-pricing min-h-screen bg-neutral-950 text-neutral-100 py-16 px-4 sm:px-6 lg:px-8">
+    <div className="premium-pricing min-h-screen bg-neutral-950 text-neutral-100 py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Header */}
         <div className="text-center space-y-3">
