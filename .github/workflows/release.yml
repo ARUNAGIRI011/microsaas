@@ -1,0 +1,66 @@
+name: Continuous Delivery
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to release (for example v1.2.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Type-check
+        run: bun run lint
+
+      - name: Production build
+        run: bun run build
+
+      - name: Package frontend build
+        run: |
+          test -d dist
+          tar -czf "bizmate-ai-frontend-${GITHUB_REF_NAME#refs/tags/}.tar.gz" -C dist .
+          cd dist && zip -qr "../bizmate-ai-frontend-${GITHUB_REF_NAME#refs/tags/}.zip" .
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "bizmate-ai-frontend-$${TAG#v}.tar.gz" "bizmate-ai-frontend-$${TAG#v}.zip" --clobber
+          else
+            gh release create "$TAG" \
+              "bizmate-ai-frontend-$${TAG#v}.tar.gz" \
+              "bizmate-ai-frontend-$${TAG#v}.zip" \
+              --title "BizMate AI $TAG" \
+              --generate-notes
+          fi
