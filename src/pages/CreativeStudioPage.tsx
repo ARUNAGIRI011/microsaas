@@ -42,7 +42,7 @@ export const CreativeStudioPage: React.FC = () => {
   const [selectedType, setSelectedType] = useState<GenerationType>('promotional_poster');
   const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '9:16' | '4:5' | '1.91:1'>('1:1');
   const [tone, setTone] = useState<'festive' | 'professional' | 'urgent' | 'luxury' | 'friendly'>('festive');
-  const [offerText, setOfferText] = useState('FLAT 40% OFF');
+  const [offerText, setOfferText] = useState('');
   const [conceptStyle, setConceptStyle] = useState<ConceptStyle>('festive_heritage');
   const [businessName, setBusinessName] = useState(user?.businessName || '');
   const [brandTagline, setBrandTagline] = useState('');
@@ -506,7 +506,7 @@ export const CreativeStudioPage: React.FC = () => {
             rows={3}
             value={requirement}
             onChange={(e) => setRequirement(e.target.value)}
-            placeholder="e.g. Create a Deepavali promotion for my clothing shop in Chennai with 40% discount on pure Kanchipuram silk sarees..."
+            placeholder="Describe your product or service, target audience, campaign goal, and any real offer (if applicable)..."
             className="w-full bg-neutral-950 border border-neutral-800 text-sm text-neutral-100 p-4 rounded-xl focus:outline-hidden focus:border-amber-400 transition"
           />
         </div>
