@@ -48,7 +48,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
     layout.conceptStyle || 'festive_heritage'
   );
   const [copied, setCopied] = useState(false);
-  const [downloadingPNG, setDownloadingPNG] = useState(false);
+  const [downloadingRaster, setDownloadingPNG] = useState(false);
 
   useEffect(() => {
     if (layout.conceptStyle) {
@@ -348,7 +348,7 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
 
           <button
             onClick={handleDownloadJPEG}
-            disabled={downloadingPNG}
+            disabled={downloadingRaster}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 text-xs font-semibold transition disabled:opacity-50 cursor-pointer"
             title="Download compressed JPEG for social media and thumbnails"
           >
@@ -358,14 +358,14 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
 
           <button
             onClick={handleDownloadPNG}
-            disabled={downloadingPNG}
+            disabled={downloadingRaster}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-extrabold shadow-lg transition disabled:opacity-50 cursor-pointer"
             title="Download high-resolution raster PNG"
           >
-            {downloadingPNG ? (
+            {downloadingRaster ? (
               <>
                 <div className="w-3 h-3 border-2 border-neutral-950 border-t-transparent rounded-full animate-spin" />
-                <span>Rasterizing...</span>
+                <span>Preparing image...</span>
               </>
             ) : (
               <>
