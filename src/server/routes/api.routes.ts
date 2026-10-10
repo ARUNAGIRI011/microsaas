@@ -164,16 +164,12 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
     return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'Email and password required' });
   }
 
-  const existing = Array.from(db.users.values()).find((u) => u.email.toLowerCase() === email.toLowerCase());
-  if (!existing) {
+  const existing = Array.from(db.users.values()).find((u) => u.email.toLowerCase() === String(email).toLowerCase());
+  if (!existing || !verifyLegacyPassword(String(password), db.passwords.get(existing.email.toLowerCase()))) {
     return res.status(401).json({ success: false, errorCode: 'AUTH_REQUIRED', error: 'Invalid email or password' });
   }
 
-  res.json({
-    success: true,
-    user: existing,
-    token: `biz_jwt_${existing.id}_${Date.now()}`
-  });
+  res.json({ success: true, user: existing });
 });
 
 apiRouter.post('/auth/register', (req: Request, res: Response) => {
@@ -241,7 +237,7 @@ apiRouter.post('/auth/register', (req: Request, res: Response) => {
   res.status(201).json({ success: true, user: newUser });
 });
 
-// Helper for live preview switching between USER and ADMIN
+// Legacy role switching is intentionally disabled.
 apiRouter.post('/auth/switch-role', (_req: Request, res: Response) => {
   return res.status(403).json({ success: false, errorCode: 'FORBIDDEN', error: 'Role switching is disabled. Roles must be assigned by a trusted administrator.' });
 });
