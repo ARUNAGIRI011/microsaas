@@ -171,6 +171,54 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
     img.src = dataUri;
   };
 
+  // JPEG export for photo-heavy social posts and compact thumbnail files.
+  const handleDownloadJPEG = () => {
+    setDownloadingPNG(true);
+    const { width, height } = getCanvasDimensions(aspectRatio);
+    const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);
+    const img = new window.Image();
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas is unavailable');
+        // JPEG has no alpha channel, so fill the canvas with the selected background first.
+        ctx.fillStyle = currentPosterData.backgroundColor || '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            setDownloadingPNG(false);
+            console.error('JPEG export failed.');
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.download = `BizMate_${activeConcept}_${aspectRatio.replace(':', 'x')}_${Date.now()}.jpg`;
+          a.href = url;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            setDownloadingPNG(false);
+          }, 300);
+        }, 'image/jpeg', 0.92);
+      } catch (err) {
+        console.warn('JPEG export failed:', err);
+        setDownloadingPNG(false);
+      }
+    };
+    img.onerror = () => {
+      console.warn('JPEG export could not render the poster image.');
+      setDownloadingPNG(false);
+    };
+    img.src = dataUri;
+  };
+
   // Download JSON Blueprint
   const handleDownloadJSON = () => {
     const jsonContent = JSON.stringify(
@@ -296,6 +344,16 @@ export const PosterCanvas: React.FC<PosterCanvasProps> = ({
           >
             <Download className="w-3.5 h-3.5 text-amber-400" />
             <span>Vector SVG</span>
+          </button>
+
+          <button
+            onClick={handleDownloadJPEG}
+            disabled={downloadingPNG}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 text-xs font-semibold transition disabled:opacity-50 cursor-pointer"
+            title="Download compressed JPEG for social media and thumbnails"
+          >
+            <Image className="w-3.5 h-3.5" />
+            <span>JPEG</span>
           </button>
 
           <button
