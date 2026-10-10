@@ -221,6 +221,7 @@ export const CreativeStudioPage: React.FC = () => {
           body: JSON.stringify({
             prompt: businessContext,
             productImageDataUrl: productImageUrl || undefined,
+            logoDataUrl: logoUrl || undefined,
             language: videoLanguage,
             aspectRatio: aspectRatio === '1:1' || aspectRatio === '16:9' || aspectRatio === '9:16' ? aspectRatio : '9:16',
             duration: 5
