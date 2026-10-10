@@ -66,6 +66,7 @@ export class GeminiService {
     }
 
     const startedAt = Date.now();
+    let providerCallRecorded = false;
     try {
       const prompt = `You are a world-class CMO and senior marketing strategist at BizMate AI.
 Analyze the following business requirement and extract a comprehensive marketing campaign plan:
@@ -97,13 +98,16 @@ Respond strictly with valid JSON conforming to this structure:
         status: 'succeeded', inputTokens: usage.promptTokenCount, outputTokens: usage.candidatesTokenCount,
         totalTokens: usage.totalTokenCount, durationMs: Date.now() - startedAt
       });
+      providerCallRecorded = true;
       const text = response.text || '';
       return JSON.parse(text);
     } catch (error) {
-      await CostTrackingService.record({
-        userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: 'analyze-requirement',
-        status: 'failed', durationMs: Date.now() - startedAt
-      });
+      if (!providerCallRecorded) {
+        await CostTrackingService.record({
+          userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: 'analyze-requirement',
+          status: 'failed', durationMs: Date.now() - startedAt
+        });
+      }
       console.warn('Gemini analyzeRequirement failed, falling back to heuristic plan:', error);
       return this.fallbackCreativePlan(requirement);
     }
@@ -129,6 +133,7 @@ Respond strictly with valid JSON conforming to this structure:
     }
 
     const startedAt = Date.now();
+    let providerCallRecorded = false;
     try {
       let promptInstruction = '';
       if (type === 'marketing_copy' || type === 'whatsapp_creative' || type === 'email_content') {
@@ -250,6 +255,7 @@ Return JSON:
         status: 'succeeded', inputTokens: usage.promptTokenCount, outputTokens: usage.candidatesTokenCount,
         totalTokens: usage.totalTokenCount, durationMs: Date.now() - startedAt
       });
+      providerCallRecorded = true;
       const text = response.text || '';
       const parsed = JSON.parse(text);
 
@@ -285,10 +291,12 @@ Return JSON:
         };
       }
     } catch (err) {
-      await CostTrackingService.record({
-        userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: `generate-creative-${type}`,
-        status: 'failed', durationMs: Date.now() - startedAt
-      });
+      if (!providerCallRecorded) {
+        await CostTrackingService.record({
+          userId, provider: 'gemini', model: 'gemini-3.8-flash', operation: `generate-creative-${type}`,
+          status: 'failed', durationMs: Date.now() - startedAt
+        });
+      }
       console.warn('Gemini generateCreativeAsset error, falling back:', err);
       return this.fallbackAssetGeneration(type, requirement, options);
     }
