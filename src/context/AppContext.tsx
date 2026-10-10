@@ -18,6 +18,7 @@ interface AppContextType {
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   removeToast: (id: string) => void;
   refreshUserData: () => Promise<void>;
+  setAuthenticatedUser: (user: UserProfile) => void;
   switchRole: (role: 'USER' | 'SUPER_ADMIN') => Promise<void>;
   logout: () => void;
 }
@@ -50,12 +51,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const setAuthenticatedUser = (authenticatedUser: UserProfile) => {
+    setUser(authenticatedUser);
+    sessionStorage.setItem('bizmate_user_id', authenticatedUser.id);
+  };
+
   const refreshUserData = async () => {
     try {
       const headers: Record<string, string> = {};
-      if (user) {
-        headers['x-user-id'] = user.id;
-      }
+      const activeUserId = user?.id || sessionStorage.getItem('bizmate_user_id');
+      if (activeUserId) headers['x-user-id'] = activeUserId;
       const res = await fetch('/api/v1/auth/me', { headers });
       const data = await res.json();
       if (data.success) {
@@ -86,6 +91,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshUserData();
   }, []);
 
+  useEffect(() => {
+    if (user?.id) refreshUserData();
+  }, [user?.id]);
+
   const switchRole = async (targetRole: 'USER' | 'SUPER_ADMIN') => {
     try {
       const res = await fetch('/api/v1/auth/switch-role', {
@@ -105,6 +114,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    sessionStorage.removeItem('bizmate_user_id');
     setUser(null);
     navigate('/');
     addToast('Logged out successfully', 'info');
@@ -124,6 +134,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addToast,
         removeToast,
         refreshUserData,
+        setAuthenticatedUser,
         switchRole,
         logout
       }}
