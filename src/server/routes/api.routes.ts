@@ -64,7 +64,7 @@ apiRouter.post('/auth/supabase/login', async (req: Request, res: Response) => {
 
 apiRouter.get('/auth/supabase/me', async (req: Request, res: Response) => {
   const authorization = req.header('authorization') || '';
-  const match = authorization.match(/^Bearer\\s+(.+)$/i);
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
   if (!match) {
     return res.status(401).json({ success: false, errorCode: 'AUTH_REQUIRED', error: 'Bearer access token required' });
   }
