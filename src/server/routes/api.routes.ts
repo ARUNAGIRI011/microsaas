@@ -4,6 +4,7 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { db, PLANS } from '../db/database.ts';
 import { GeminiService } from '../services/gemini.service.ts';
 import { GenerationService } from '../services/generation.service.ts';
@@ -19,6 +20,20 @@ import { HiggsfieldService } from '../services/higgsfield.service.ts';
 import { CostTrackingService } from '../services/cost-tracking.service.ts';
 
 export const apiRouter = Router();
+
+function hashLegacyPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex');
+  return `${salt}:${scryptSync(password, salt, 64).toString('hex')}`;
+}
+
+function verifyLegacyPassword(password: string, stored: string | undefined): boolean {
+  if (!stored) return false;
+  const [salt, expectedHex] = stored.split(':');
+  if (!salt || !expectedHex) return false;
+  const expected = Buffer.from(expectedHex, 'hex');
+  const actual = scryptSync(password, salt, 64);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
 
 // Supabase Auth endpoints are the first migration step. Existing legacy routes still
 // use the in-memory demo adapter and must not be treated as production-secure yet.
@@ -162,9 +177,12 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
 });
 
 apiRouter.post('/auth/register', (req: Request, res: Response) => {
-  const { email, name, businessName, industry } = req.body;
-  if (!email || !name) {
-    return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'Email and name are required' });
+  const { email, name, businessName, industry, password } = req.body;
+  if (!email || !name || typeof password !== 'string') {
+    return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'Email, name, and password are required' });
+  }
+  if (password.length < 10) {
+    return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'Password must contain at least 10 characters' });
   }
 
   const existing = Array.from(db.users.values()).find((u) => u.email.toLowerCase() === email.toLowerCase());
@@ -189,6 +207,7 @@ apiRouter.post('/auth/register', (req: Request, res: Response) => {
   };
 
   db.users.set(newUserId, newUser);
+  db.passwords.set(email.trim().toLowerCase(), hashLegacyPassword(password));
 
   db.subscriptions.set(newUserId, {
     id: `sub-${newUserId}`,
@@ -219,11 +238,7 @@ apiRouter.post('/auth/register', (req: Request, res: Response) => {
     timestamp: new Date().toISOString()
   });
 
-  res.status(201).json({
-    success: true,
-    user: newUser,
-    token: `biz_jwt_${newUserId}`
-  });
+  res.status(201).json({ success: true, user: newUser });
 });
 
 // Helper for live preview switching between USER and ADMIN
