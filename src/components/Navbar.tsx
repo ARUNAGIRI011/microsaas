@@ -18,7 +18,6 @@ import {
   X,
   FileText,
   DollarSign,
-  Cpu
 } from 'lucide-react';
 import { AppRoute } from '../types/client.ts';
 
@@ -135,15 +134,6 @@ export const Navbar: React.FC = () => {
                   }`}
                 >
                   Assets
-                </button>
-                <button
-                  onClick={() => navigate('/dashboard/integrations')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${
-                    currentRoute === '/dashboard/integrations' ? 'text-amber-400 bg-neutral-900' : 'text-neutral-300 hover:text-white'
-                  }`}
-                >
-                  <Cpu className="w-4 h-4 text-amber-400" />
-                  Integrations
                 </button>
                 <button
                   onClick={() => navigate('/dashboard/subscription')}
