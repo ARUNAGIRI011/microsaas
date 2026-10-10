@@ -104,7 +104,8 @@ export class GenerationService {
       const content = await GeminiService.generateCreativeAsset(
         params.type,
         params.prompt || params.businessRequirement || '',
-        params.options || {}
+        params.options || {},
+        userId
       );
 
       // 5. Create Asset & Output Records
