@@ -272,12 +272,22 @@ export const CreativeStudioPage: React.FC = () => {
         const posterData = await posterRes.json();
         if (!posterRes.ok || !posterData.success) {
           setPosterStatus('failed');
-          addToast(posterData.error || 'Open-Higgsfield image generation is not configured.', 'error');
+          addToast(posterData.error || 'AI poster generation is not configured. Check POSTER_IMAGE_PROVIDER and its server-side API key.', 'error');
           return;
         }
-        setPosterJob({ requestId: posterData.requestId, requestToken: posterData.requestToken });
-        setPosterStatus(posterData.status || 'queued');
-        addToast('AI poster image queued. It will appear when the provider finishes.', 'info');
+        if (posterData.status === 'completed' && posterData.outputUrl) {
+          setPosterJob(null);
+          setPosterUrl(posterData.outputUrl);
+          setPosterStatus('completed');
+          addToast(posterData.message || 'AI poster image is ready.', 'success');
+        } else if (posterData.requestId && posterData.requestToken) {
+          setPosterJob({ requestId: posterData.requestId, requestToken: posterData.requestToken });
+          setPosterStatus(posterData.status || 'queued');
+          addToast(posterData.message || 'AI poster image queued. It will appear when the provider finishes.', 'info');
+        } else {
+          setPosterStatus('failed');
+          addToast('The image provider returned an incomplete response.', 'error');
+        }
       }
 
       // Submit the paid video render first. If the provider is not configured, do not consume app credits.
@@ -1004,7 +1014,7 @@ export const CreativeStudioPage: React.FC = () => {
             <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-white">Open-Higgsfield AI image</p>
+                  <p className="text-xs font-bold text-white">AI poster image generation</p>
                   <p className="mt-1 text-[11px] text-neutral-400">Status: {posterStatus || 'not submitted'}</p>
                 </div>
                 {posterUrl && <a href={posterUrl} target="_blank" rel="noreferrer" className="text-xs text-amber-300 underline">Open image</a>}
