@@ -2,6 +2,15 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "installCommand": "bun install",
-  "buildCommand": "bun run build",
-  "outputDirectory": "dist"
+  "buildCommand": "bun run lint && bun run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/[...path].ts": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    { "source": "/api/v1/:path*", "destination": "/api/[...path]" },
+    { "source": "/api/health", "destination": "/api/[...path]" }
+  ]
 }
