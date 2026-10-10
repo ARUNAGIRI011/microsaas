@@ -160,6 +160,11 @@ export const CreativeStudioPage: React.FC = () => {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      addToast('Logo must be 3 MB or smaller.', 'error');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
@@ -178,6 +183,11 @@ export const CreativeStudioPage: React.FC = () => {
   const handleProductUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      addToast('Product photo must be 3 MB or smaller.', 'error');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
