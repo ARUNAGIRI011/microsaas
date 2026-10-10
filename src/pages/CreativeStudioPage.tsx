@@ -272,7 +272,13 @@ export const CreativeStudioPage: React.FC = () => {
             language: selectedLanguage,
             logoDataUrl: logoUrl || undefined,
             productImageDataUrl: productImageUrl || undefined,
-            aspectRatio: selectedType === 'youtube_thumbnail' ? '16:9' : aspectRatio === '4:5' ? '4:5' : '1:1'
+            aspectRatio: selectedType === 'youtube_thumbnail' ? '16:9' : aspectRatio === '4:5' ? '4:5' : '1:1',
+            language: selectedLanguage,
+            businessName: businessName.trim(),
+            brandTagline: brandTagline.trim(),
+            businessPhone: businessPhone.trim(),
+            businessWebsite: businessWebsite.trim(),
+            businessAddress: businessAddress.trim()
           })
         });
         const posterData = await posterRes.json();
@@ -905,7 +911,7 @@ export const CreativeStudioPage: React.FC = () => {
                     logoUrl: logoUrl || activeOutput.content.layoutConfig.logoUrl,
                     productImageUrl: productImageUrl || activeOutput.content.layoutConfig.productImageUrl
                   }}
-                  brandName={user?.businessName || 'Chennai Silks & Apparel'}
+                  brandName={businessName || ''}
                   aspectRatio={aspectRatio}
                   logoUrl={logoUrl || activeOutput.content.layoutConfig.logoUrl}
                   productImageUrl={productImageUrl || activeOutput.content.layoutConfig.productImageUrl}
