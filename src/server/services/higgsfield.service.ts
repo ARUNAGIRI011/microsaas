@@ -109,6 +109,74 @@ export class HiggsfieldService {
     return { requestId, requestToken: signRequest(requestId, input.userId, key), status: data.status || 'processing', model };
   }
 
+
+  /**
+   * Synchronous low-cost poster image generation.
+   * Hugging Face is the default provider; Gemini image generation and MuAPI
+   * are deliberately opt-in because image inference may incur charges.
+   */
+  static async generatePosterImage(input: {
+    prompt: string;
+    aspectRatio?: string;
+  }): Promise<{ status: 'completed'; outputUrl: string; provider: string; model: string }> {
+    const provider = (process.env.POSTER_IMAGE_PROVIDER || 'huggingface').trim().toLowerCase();
+    const ratio = input.aspectRatio || '1:1';
+    const ratioMap: Record<string, string> = {
+      '1:1': 'square_hd',
+      '16:9': 'landscape_16_9',
+      '9:16': 'portrait_16_9',
+      '4:5': 'portrait_4_3',
+      '3:4': 'portrait_4_3',
+      '4:3': 'landscape_4_3'
+    };
+    const prompt = `${input.prompt}
+Create a professional commercial poster image with clear hierarchy, attractive lighting, realistic product photography, and a clean composition. Render all requested text in the requested language as accurately as possible. Do not invent business facts, prices, contact details, or claims.`;
+
+    if (provider === 'huggingface') {
+      const token = process.env.HF_TOKEN?.trim();
+      if (!token) throw new Error('POSTER_PROVIDER_NOT_CONFIGURED: Add HF_TOKEN with Inference Providers permission. Hugging Face currently includes only a small monthly credit, not unlimited free generation.');
+      const model = process.env.HF_IMAGE_MODEL?.trim() || 'black-forest-labs/FLUX.1-schnell';
+      const endpoint = process.env.HF_IMAGE_ENDPOINT?.trim() || 'https://router.huggingface.co/fal-ai/fal-ai/flux/schnell';
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ prompt, image_size: ratioMap[ratio] || 'square_hd', num_images: 1 })
+      });
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Hugging Face poster generation failed (HTTP ${response.status}): ${errorText.slice(0, 400)}`);
+      }
+      if (contentType.startsWith('image/')) {
+        const bytes = Buffer.from(await response.arrayBuffer());
+        return { status: 'completed', outputUrl: `data:${contentType};base64,${bytes.toString('base64')}`, provider: 'huggingface', model };
+      }
+      const data = await response.json() as { images?: Array<{ url?: string }>; image?: { url?: string }; url?: string; image_url?: string; detail?: string };
+      const outputUrl = data.images?.[0]?.url || data.image?.url || data.image_url || data.url;
+      if (!outputUrl) throw new Error(data.detail || 'Hugging Face returned no image URL. Check HF_IMAGE_ENDPOINT and the model/provider availability.');
+      return { status: 'completed', outputUrl, provider: 'huggingface', model };
+    }
+
+    if (provider === 'gemini') {
+      const key = process.env.GEMINI_API_KEY?.trim();
+      if (!key) throw new Error('POSTER_PROVIDER_NOT_CONFIGURED: Add GEMINI_API_KEY to enable Gemini image generation.');
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: key });
+      const model = process.env.GEMINI_IMAGE_MODEL?.trim() || 'gemini-3.1-flash-lite-image';
+      const result = await ai.interactions.create({
+        model,
+        input: prompt,
+        response_format: { type: 'image', aspect_ratio: ratio }
+      });
+      const imageData = (result as unknown as { output_image?: { data?: string; mime_type?: string } }).output_image;
+      if (!imageData?.data) throw new Error('Gemini did not return an image. Verify the image model and API billing access.');
+      const mime = imageData.mime_type || 'image/png';
+      return { status: 'completed', outputUrl: `data:${mime};base64,${imageData.data}`, provider: 'gemini', model };
+    }
+
+    throw new Error('POSTER_PROVIDER_INVALID: Set POSTER_IMAGE_PROVIDER to huggingface or gemini. Use muapi for the legacy async poster endpoint.');
+  }
+
   static async submitPoster(input: {
     userId: string;
     prompt: string;
