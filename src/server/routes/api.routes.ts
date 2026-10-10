@@ -15,6 +15,7 @@ import { PlanId } from '../types/index.ts';
 import { generatePosterSVG } from '../../lib/svg-generator.ts';
 import { SupabaseAuthService } from '../services/supabase-auth.service.ts';
 import { EmailService } from '../services/email.service.ts';
+import { HiggsfieldService } from '../services/higgsfield.service.ts';
 
 export const apiRouter = Router();
 
@@ -225,6 +226,48 @@ apiRouter.post('/auth/switch-role', (req: Request, res: Response) => {
     success: true,
     user: targetUser
   });
+});
+
+// ---------------- HIGGSFIELD UGC VIDEO GENERATION ----------------
+apiRouter.post('/videos/higgsfield/generate', async (req: Request, res: Response) => {
+  const user = getAuthUser(req);
+  const { prompt, productImageDataUrl, language, aspectRatio, duration } = req.body ?? {};
+  if (typeof prompt !== 'string' || !prompt.trim()) {
+    return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'A video prompt is required.' });
+  }
+  if (!HiggsfieldService.isConfigured()) {
+    return res.status(503).json({ success: false, errorCode: 'HIGGSFIELD_NOT_CONFIGURED', error: 'UGC video generation is not configured. Add HIGGSFIELD_API_KEY to the server environment.' });
+  }
+  try {
+    const result = await HiggsfieldService.submitUGCVideo({
+      userId: user.id,
+      prompt: prompt.trim().slice(0, 6000),
+      productImageDataUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined,
+      language: typeof language === 'string' ? language.slice(0, 60) : 'English',
+      aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '9:16',
+      duration: Number(duration) || 5
+    });
+    return res.status(202).json({ success: true, ...result, message: 'Video job submitted to Higgsfield. Poll status until completed.' });
+  } catch (error: any) {
+    const message = error?.message || 'Could not submit the video job.';
+    return res.status(502).json({ success: false, errorCode: 'HIGGSFIELD_REQUEST_FAILED', error: message });
+  }
+});
+
+apiRouter.post('/videos/higgsfield/status', async (req: Request, res: Response) => {
+  const user = getAuthUser(req);
+  const { requestId, requestToken } = req.body ?? {};
+  if (typeof requestId !== 'string' || typeof requestToken !== 'string') {
+    return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'requestId and requestToken are required.' });
+  }
+  try {
+    const result = await HiggsfieldService.getStatus(requestId, requestToken, user.id);
+    return res.json({ success: true, ...result });
+  } catch (error: any) {
+    const message = error?.message || 'Could not check the video job.';
+    const status = message === 'VIDEO_REQUEST_NOT_FOUND' ? 404 : 502;
+    return res.status(status).json({ success: false, errorCode: 'HIGGSFIELD_STATUS_FAILED', error: status === 404 ? 'Video job was not found for this session.' : message });
+  }
 });
 
 // ---------------- CREATIVE STUDIO & GENERATION ROUTES ----------------
