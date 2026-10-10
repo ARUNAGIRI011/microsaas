@@ -228,7 +228,7 @@ apiRouter.post('/auth/switch-role', (req: Request, res: Response) => {
   });
 });
 
-// ---------------- OPEN-HIGGSFIELD POSTER IMAGE GENERATION ----------------
+// ---------------- LOW-COST AI POSTER IMAGE GENERATION ----------------
 apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Response) => {
   const user = getAuthUser(req);
   const { prompt, logoDataUrl, productImageDataUrl, aspectRatio } = req.body ?? {};
@@ -238,20 +238,41 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
   if ([logoDataUrl, productImageDataUrl].some((value) => typeof value === 'string' && value.length > 1.8 * 1024 * 1024)) {
     return res.status(413).json({ success: false, errorCode: 'UPLOAD_TOO_LARGE', error: 'Each reference image must be 1.2 MB or smaller.' });
   }
-  if (!HiggsfieldService.isConfigured()) {
-    return res.status(503).json({ success: false, errorCode: 'OPEN_OPEN_HIGGSFIELD_NOT_CONFIGURED', error: 'Add MUAPI_API_KEY to the server environment to enable Open-Higgsfield image generation.' });
-  }
+  const provider = (process.env.POSTER_IMAGE_PROVIDER || 'huggingface').trim().toLowerCase();
   try {
-    const result = await HiggsfieldService.submitPoster({
-      userId: user.id,
+    if (provider === 'muapi') {
+      if (!HiggsfieldService.isConfigured()) {
+        return res.status(503).json({ success: false, errorCode: 'POSTER_PROVIDER_NOT_CONFIGURED', error: 'Add MUAPI_API_KEY to the server environment. MuAPI generation may be billed.' });
+      }
+      const result = await HiggsfieldService.submitPoster({
+        userId: user.id,
+        prompt: prompt.trim().slice(0, 6000),
+        logoDataUrl: typeof logoDataUrl === 'string' ? logoDataUrl : undefined,
+        productImageDataUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined,
+        aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '1:1'
+      });
+      return res.status(202).json({ success: true, ...result, message: 'MuAPI poster job submitted. Provider usage may be billed.' });
+    }
+    const result = await HiggsfieldService.generatePosterImage({
       prompt: prompt.trim().slice(0, 6000),
-      logoDataUrl: typeof logoDataUrl === 'string' ? logoDataUrl : undefined,
-      productImageDataUrl: typeof productImageDataUrl === 'string' ? productImageDataUrl : undefined,
       aspectRatio: typeof aspectRatio === 'string' ? aspectRatio : '1:1'
     });
-    return res.status(202).json({ success: true, ...result, message: 'Poster image job submitted. Poll status until completed.' });
+    return res.json({
+      success: true,
+      ...result,
+      referenceImagesApplied: false,
+      message: result.provider === 'huggingface'
+        ? 'Poster generated with Hugging Face. Its free monthly credit is limited; reference uploads are not applied by this text-to-image endpoint.'
+        : 'Poster generated with Gemini image generation. This model may require paid API billing.'
+    });
   } catch (error: any) {
-    return res.status(502).json({ success: false, errorCode: 'OPEN_OPEN_HIGGSFIELD_REQUEST_FAILED', error: error?.message || 'Could not submit poster generation.' });
+    const message = error?.message || 'Could not generate the poster image.';
+    const status = message.includes('POSTER_PROVIDER_NOT_CONFIGURED') ? 503 : 502;
+    return res.status(status).json({
+      success: false,
+      errorCode: status === 503 ? 'POSTER_PROVIDER_NOT_CONFIGURED' : 'POSTER_GENERATION_FAILED',
+      error: message
+    });
   }
 });
 
