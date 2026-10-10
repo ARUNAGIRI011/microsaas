@@ -87,7 +87,7 @@ export class IntegrationsService {
         name: 'Higgsfield UGC Video API',
         category: 'AI_PROVIDER',
         configured: isHiggsfieldSet,
-        statusText: isHiggsfieldSet ? 'CONFIGURED — LIVE API CALLS ENABLED' : 'NOT CONFIGURED',
+        statusText: isHiggsfieldSet ? 'CONFIGURED & ACTIVE' : 'NOT CONFIGURED / NOT TESTED',
         details: isHiggsfieldSet
           ? 'Server-side Higgsfield video generation is configured; provider billing may apply.'
           : 'Set HIGGSFIELD_API_KEY in the server environment to enable actual video renders. Storyboard generation alone does not render a video.'
