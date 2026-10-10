@@ -9,7 +9,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 
 const API_BASE = 'https://api.muapi.ai/api/v1';
-const IMAGE_MODEL = 'flux-dev-image';
+const IMAGE_MODEL = 'nano-banana';
 const VIDEO_T2V_MODEL = 'seedance-v2.0-t2v';
 const VIDEO_I2V_MODEL = 'seedance-v2.0-i2v';
 
@@ -141,7 +141,10 @@ export class HiggsfieldService {
     });
     const data = await response.json() as ProviderResponse;
     if (!response.ok) throw new Error(data.detail || data.message || `MuAPI status check failed (HTTP ${response.status}).`);
-    const status = String(data.status || 'processing').toLowerCase();
-    return { requestId, status, outputUrl: readOutput(data), videoUrl: readOutput(data), error: status === 'failed' || status === 'error' ? (data.error || data.detail || 'Generation failed.') : undefined };
+    const providerStatus = String(data.status || 'processing').toLowerCase();
+    const status = ['completed', 'succeeded', 'success'].includes(providerStatus) ? 'completed'
+      : ['failed', 'error'].includes(providerStatus) ? 'failed'
+      : providerStatus;
+    return { requestId, status, outputUrl: readOutput(data), videoUrl: readOutput(data), error: status === 'failed' ? (data.error || data.detail || 'Generation failed.') : undefined };
   }
 }
