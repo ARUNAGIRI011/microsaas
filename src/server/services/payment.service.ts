@@ -26,14 +26,18 @@ export class PaymentService {
   /**
    * Create an order for a plan upgrade
    */
-  public static async createOrder(userId: string, planId: PlanId): Promise<{ orderId: string; amount: number; currency: string; keyId: string }> {
+  public static async createOrder(userId: string, planId: PlanId, billingInterval: 'month' | 'year' = 'month'): Promise<{ orderId: string; amount: number; currency: string; keyId: string }> {
     const plan = PLANS[planId];
     if (!plan) throw new Error('Invalid plan selected');
     if (!this.isConfigured()) {
       throw new Error('Online payments are not configured yet. Please contact the site administrator.');
     }
 
-    const amountInPaise = Math.round(plan.price * 100);
+    const monthlyPrice = billingInterval === 'year' && planId !== 'FREE'
+      ? (planId === 'STARTER' ? 399 : planId === 'PRO' ? 1199 : 7999)
+      : plan.price;
+    const billedPrice = billingInterval === 'year' ? monthlyPrice * 12 : monthlyPrice;
+    const amountInPaise = Math.round(billedPrice * 100);
     const receipt = `bm-${Date.now()}-${userId.replace(/[^a-zA-Z0-9]/g, '').slice(-10)}`.slice(0, 40);
     const response = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST',
@@ -57,9 +61,10 @@ export class PaymentService {
       id: `pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       userId,
       orderId: order.id,
-      amount: plan.price,
+      amount: billedPrice,
       currency: 'INR',
       planId,
+      billingInterval,
       status: 'CREATED',
       verified: false,
       createdAt: new Date().toISOString()
@@ -69,7 +74,7 @@ export class PaymentService {
       userId,
       action: 'PAYMENT_ORDER_CREATED',
       resource: `orders/${order.id}`,
-      details: `Created Razorpay order for plan ${planId} (₹${plan.price})`,
+      details: `Created Razorpay order for plan ${planId} (${billingInterval}, ₹${billedPrice})`,
       status: 'SUCCESS'
     });
     return { orderId: order.id, amount: order.amount ?? amountInPaise, currency: order.currency ?? 'INR', keyId: razorpayKeyId };
@@ -141,7 +146,7 @@ export class PaymentService {
       sub.planId = payment.planId;
       sub.status = 'ACTIVE';
       sub.currentPeriodStart = new Date().toISOString();
-      sub.currentPeriodEnd = new Date(Date.now() + 30 * 86400000).toISOString();
+      sub.currentPeriodEnd = new Date(Date.now() + (payment.billingInterval === 'year' ? 365 : 30) * 86400000).toISOString();
     }
 
     const balance = db.usageBalances.get(params.userId);
