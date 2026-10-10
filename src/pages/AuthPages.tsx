@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext.tsx';
 import { Sparkles, Shield, User, Lock, Mail, Building, ArrowRight } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { navigate, addToast, refreshUserData } = useApp();
+  const { navigate, addToast, refreshUserData, setAuthenticatedUser } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,6 +24,7 @@ export const LoginPage: React.FC = () => {
       });
       const data = await res.json();
       if (data.success) {
+        setAuthenticatedUser(data.user);
         addToast(`Welcome back, ${data.user.name}!`, 'success');
         await refreshUserData();
         navigate('/dashboard');
@@ -118,7 +119,8 @@ export const RegisterPage: React.FC = () => {
       });
       const data = await res.json();
       if (data.success) {
-        addToast('Registration request completed. Your account plan and available credits are shown after sign-in.', 'success');
+        setAuthenticatedUser(data.user);
+        addToast('Registration successful. Your available credits are shown in the dashboard.', 'success');
         await refreshUserData();
         navigate('/dashboard');
       } else {
@@ -200,6 +202,7 @@ export const RegisterPage: React.FC = () => {
             <input
               required
               type="password"
+              minLength={10}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-neutral-100 focus:outline-hidden focus:border-amber-400"
@@ -211,7 +214,7 @@ export const RegisterPage: React.FC = () => {
             disabled={loading}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-neutral-950 font-bold text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
           >
-            {loading ? 'Creating Account...' : 'Complete Registration & Get 50 Credits'}
+            {loading ? 'Creating Account...' : 'Complete Registration'}
             {!loading && <ArrowRight className="w-4 h-4" />}
           </button>
         </form>
