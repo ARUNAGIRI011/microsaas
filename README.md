@@ -1,4 +1,4 @@
-# BizMate AI (V1) — Autonomous AI Marketing SaaS MVP
+# BizMate AI (V1) — Autonomous AI Marketing Agency
 
 BizMate AI is a production-oriented AI marketing SaaS MVP that transforms a single business requirement into an omnichannel marketing campaign.
 
