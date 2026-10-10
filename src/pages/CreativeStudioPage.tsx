@@ -216,6 +216,7 @@ export const CreativeStudioPage: React.FC = () => {
       : selectedType === 'promotional_video' ? videoLanguage : posterLanguage;
     const businessContext = [
       requirement.trim(),
+      user?.businessName ? `Business/brand name: ${user.businessName}` : '',
       businessAddress.trim() ? `Business address/contact to include: ${businessAddress.trim()}` : '',
       `Write all poster/thumbnail text and any video dialogue in ${selectedLanguage}. Preserve the business name, address, phone numbers and URLs exactly.`
     ].filter(Boolean).join('\n');
