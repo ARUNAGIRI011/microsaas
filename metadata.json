@@ -1,0 +1,6 @@
+{
+  "name": "BizMate AI - Autonomous Marketing SaaS",
+  "description": "Production-grade AI marketing SaaS MVP: creative studio, poster and copy generation, atomic credits, Razorpay & YouTube integrations, and executive reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
