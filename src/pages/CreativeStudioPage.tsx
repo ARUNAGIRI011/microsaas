@@ -798,7 +798,7 @@ export const CreativeStudioPage: React.FC = () => {
 
         {selectedType === 'promotional_video' && (
           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200">
-            UGC video generation uses the external Higgsfield API and may incur separate provider charges. The product photo is used as a video reference when its format is supported; exact logo overlays and printed address text are not guaranteed by the video model.
+            UGC video generation uses the external Higgsfield API and may incur separate provider charges. For video references, upload PNG, JPEG, or WebP product photos/logos; SVG logos remain supported for posters but are not sent as video references. Video models can alter logo lettering and contact details, so use the poster export for exact brand/address placement.
           </div>
         )}
 
