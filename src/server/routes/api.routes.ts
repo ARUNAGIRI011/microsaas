@@ -232,7 +232,7 @@ apiRouter.post('/auth/switch-role', (req: Request, res: Response) => {
 // ---------------- LOW-COST AI POSTER IMAGE GENERATION ----------------
 apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Response) => {
   const user = getAuthUser(req);
-  const { prompt, logoDataUrl, productImageDataUrl, aspectRatio } = req.body ?? {};
+  const { prompt, logoDataUrl, productImageDataUrl, aspectRatio, language } = req.body ?? {};
   if (typeof prompt !== 'string' || !prompt.trim()) {
     return res.status(400).json({ success: false, errorCode: 'VALIDATION_ERROR', error: 'A poster prompt is required.' });
   }
@@ -289,7 +289,7 @@ apiRouter.post('/creative/open-higgsfield/poster', async (req: Request, res: Res
       const generated = await GeminiService.generateCreativeAsset(
         'promotional_poster',
         prompt.trim().slice(0, 6000),
-        { aspectRatio: aspect, language: 'English' },
+        { aspectRatio: aspect, language: typeof language === 'string' ? language.slice(0, 60) : 'English' },
         user.id
       );
       const layout = (generated.layoutConfig || {}) as Record<string, string | undefined>;
@@ -734,8 +734,10 @@ apiRouter.post('/integrations/sheets/sync', (req: Request, res: Response) => {
 
 // ---------------- ADMIN ROUTES (RBAC Protected) ----------------
 apiRouter.get('/admin/overview', requireAdmin, (_req: Request, res: Response) => {
-  const users = Array.from(db.users.values());
-  const activeSubs = Array.from(db.subscriptions.values()).filter((s) => s.status === 'ACTIVE');
+  // Exclude local demo/system fixture identities from business metrics.
+  const fixtureIds = new Set(['usr-demo-001', 'usr-admin-001']);
+  const users = Array.from(db.users.values()).filter((u) => !fixtureIds.has(u.id));
+  const activeSubs = Array.from(db.subscriptions.values()).filter((s) => s.status === 'ACTIVE' && !fixtureIds.has(s.userId));
   const allJobs = Array.from(db.generationJobs.values());
 
   // Real MRR calculation: Sum of active plan prices
@@ -765,7 +767,7 @@ apiRouter.get('/admin/overview', requireAdmin, (_req: Request, res: Response) =>
 });
 
 apiRouter.get('/admin/users', requireAdmin, (_req: Request, res: Response) => {
-  const userList = Array.from(db.users.values()).map((u) => {
+  const userList = Array.from(db.users.values()).filter((u) => !['usr-demo-001', 'usr-admin-001'].includes(u.id)).map((u) => {
     const sub = db.subscriptions.get(u.id);
     const balance = db.usageBalances.get(u.id);
     return {
