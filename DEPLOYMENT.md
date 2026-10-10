@@ -43,8 +43,22 @@ The Supabase registration endpoint sends a best-effort welcome email through Res
 
 Never use a `VITE_*` prefix for the API key. Verify your sending domain and its DNS records in Resend before sending to customers. Resend currently has no verified domains in the connected account, so production delivery will not work until a domain you control is added and verified. If email settings are absent or Resend rejects a message, registration still succeeds and the API reports `welcomeEmailSent: false`; provider errors are logged server-side without exposing credentials.
 
+### 6. Configure Higgsfield UGC video generation
 
-### 5. Run the pipeline
+The Creative Studio now submits real video jobs to the Higgsfield API; this is not the same as embedding the OpenHiggsfield open-source studio. Add `HIGGSFIELD_API_KEY` as a server-only environment variable in Vercel for Preview and Production. Use the complete API credential copied from the Higgsfield API console, and never prefix it with `VITE_`. See the [official Seedance 2.5 API reference](https://open.higgsfield.ai/models/bytedance/seedance-2.5/text-to-video/api-reference). Provider API usage is billed separately from BizMate credits. The app polls job status and shows the resulting MP4 URL when the provider completes the render.
+
+For UGC video, use a PNG/JPEG/WebP product photo and, if available, a PNG/JPEG/WebP logo. The backend uploads supported reference images through Higgsfield's signed upload flow. SVG/sample images fall back to text-to-video. Video models may not preserve logos or contact details exactly; do not rely on generated text as a legally precise logo/address overlay.
+
+## Recommended export formats
+
+- Posters/social feed: PNG for crisp text and transparent assets; JPEG for smaller photo-heavy files. Keep SVG as an optional editable/vector export.
+- Instagram feed creative: 1080×1350 (4:5) or 1080×1080 (1:1).
+- YouTube thumbnail: 1280×720 (16:9), PNG or JPEG, under YouTube's current upload-size limit.
+- Reels/Shorts/TikTok UGC video: MP4 (H.264 video + AAC audio), vertical 9:16, typically 1080×1920; use a 5–15 second first cut for ads, then extend as needed.
+- Landscape video: MP4, 16:9 for YouTube/web.
+- Keep the text-only .txt export removed from the poster canvas. Use image/video formats for the actual creative; keep JSON only as an optional editable layout blueprint.
+
+### 7. Run the pipeline
 
 Push a reviewed commit to `main`, or manually run the workflow on `main`:
 
