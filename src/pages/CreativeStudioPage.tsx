@@ -300,12 +300,12 @@ export const CreativeStudioPage: React.FC = () => {
         const videoData = await videoRes.json();
         if (!videoRes.ok || !videoData.success) {
           setVideoStatus('failed');
-          addToast(videoData.error || 'Higgsfield video generation is not configured.', 'error');
+          addToast(videoData.error || 'Open-Higgsfield image/video generation is not configured.', 'error');
           return;
         }
         setVideoJob({ requestId: videoData.requestId, requestToken: videoData.requestToken });
         setVideoStatus(videoData.status || 'queued');
-        addToast('UGC video queued with Higgsfield. Rendering may take a few minutes.', 'info');
+        addToast('UGC video queued with Open-Higgsfield. Rendering may take a few minutes.', 'info');
       }
 
       const res = await fetch('/api/v1/generations', {
@@ -1017,12 +1017,12 @@ export const CreativeStudioPage: React.FC = () => {
             </div>
           )}
 
-          {/* Actual Higgsfield UGC video result */}
+          {/* Actual Open-Higgsfield UGC video result */}
           {activeOutput.type === 'promotional_video' && (
             <div className="space-y-3">
               <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-white">Higgsfield UGC video</p>
+                  <p className="text-xs font-bold text-white">Open-Higgsfield UGC video</p>
                   <p className="text-[11px] text-neutral-400 mt-1">Status: {videoStatus || 'not submitted'}</p>
                 </div>
                 {videoUrl && <a href={videoUrl} target="_blank" rel="noreferrer" className="text-xs text-amber-300 underline">Open video</a>}
